@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Student, Installment, CashTransaction, Lesson, Teacher } from './types';
 import { getStoredData, saveStoredData, recalculateInstallmentStatus } from './data/mockData';
 import { loadFirestoreData, syncStateWithFirestore, AppDatabaseState } from './data/firebaseService';
+import { onSnapshot, collection } from 'firebase/firestore';
+import { db } from './data/firebase';
 import Dashboard from './components/Dashboard';
 import StudentManager from './components/StudentManager';
 import InstallmentsManager from './components/InstallmentsManager';
@@ -24,6 +26,8 @@ export default function App() {
 
   // Load and initialize from Firestore (falls back to localStorage or seeded mock data)
   useEffect(() => {
+    let unsubscribes: (() => void)[] = [];
+
     async function initDatabase() {
       try {
         console.log("Fetching live data from Firestore...");
@@ -48,6 +52,69 @@ export default function App() {
 
         // Pre-cache to localStorage as well for instant-responsiveness
         saveStoredData(data.students, alignedInstallments, data.transactions, data.lessons, data.teachers);
+
+        // --- Start Real-time synchronization listeners for multi-device sync ---
+        console.log("Activating live real-time Firestore synchronization...");
+
+        const unsubStudents = onSnapshot(collection(db, "students"), (snapshot) => {
+          // Check if metadata has pending local writes to avoid double-triggers
+          if (snapshot.metadata.hasPendingWrites) return;
+          const list: Student[] = [];
+          snapshot.forEach(docSnap => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as Student);
+          });
+          if (list.length > 0) {
+            setStudents(list);
+          }
+        }, (err) => console.warn("Students real-time sync error:", err));
+
+        const unsubTeachers = onSnapshot(collection(db, "teachers"), (snapshot) => {
+          if (snapshot.metadata.hasPendingWrites) return;
+          const list: Teacher[] = [];
+          snapshot.forEach(docSnap => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as Teacher);
+          });
+          if (list.length > 0) {
+            setTeachers(list);
+          }
+        }, (err) => console.warn("Teachers real-time sync error:", err));
+
+        const unsubInstallments = onSnapshot(collection(db, "installments"), (snapshot) => {
+          if (snapshot.metadata.hasPendingWrites) return;
+          const list: Installment[] = [];
+          snapshot.forEach(docSnap => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as Installment);
+          });
+          if (list.length > 0) {
+            const aligned = recalculateInstallmentStatus(list, "2026-06-17");
+            setInstallments(aligned);
+          }
+        }, (err) => console.warn("Installments real-time sync error:", err));
+
+        const unsubTransactions = onSnapshot(collection(db, "transactions"), (snapshot) => {
+          if (snapshot.metadata.hasPendingWrites) return;
+          const list: CashTransaction[] = [];
+          snapshot.forEach(docSnap => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as CashTransaction);
+          });
+          if (list.length > 0) {
+            setTransactions(list);
+          }
+        }, (err) => console.warn("Transactions real-time sync error:", err));
+
+        const unsubLessons = onSnapshot(collection(db, "lessons"), (snapshot) => {
+          if (snapshot.metadata.hasPendingWrites) return;
+          const list: Lesson[] = [];
+          snapshot.forEach(docSnap => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as Lesson);
+          });
+          if (list.length > 0) {
+            setLessons(list);
+          }
+        }, (err) => console.warn("Lessons real-time sync error:", err));
+
+        unsubscribes.push(unsubStudents, unsubTeachers, unsubInstallments, unsubTransactions, unsubLessons);
+
       } catch (err) {
         console.warn("Could not load from Firestore, using offline storage fallback:", err);
         setDbMode('local');
@@ -64,6 +131,12 @@ export default function App() {
       }
     }
     initDatabase();
+
+    // Cleanup subscription listeners on unmount
+    return () => {
+      console.log("Cleaning up live Firestore listeners...");
+      unsubscribes.forEach(unsub => unsub());
+    };
   }, []);
 
   // Sync to database layer
