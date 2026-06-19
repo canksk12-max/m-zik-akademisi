@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Student, Installment, CashTransaction, Lesson, Teacher } from './types';
-import { getStoredData, saveStoredData, recalculateInstallmentStatus } from './data/mockData';
+import { getStoredData, saveStoredData, recalculateInstallmentStatus, getTodayDateString, formatTurkishDate } from './data/mockData';
 import { loadFirestoreData, syncStateWithFirestore, forceUploadLocalDataToFirestore, AppDatabaseState } from './data/firebaseService';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { db, getFirebaseProvider, setFirebaseProvider, FirebaseProvider } from './data/firebase';
@@ -9,16 +9,10 @@ import StudentManager from './components/StudentManager';
 import InstallmentsManager from './components/InstallmentsManager';
 import CalendarManager from './components/CalendarManager';
 import TeacherManager from './components/TeacherManager';
-import AdminLogin from './components/AdminLogin';
-import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, LogOut } from 'lucide-react';
+import AcademyLogo from './components/AcademyLogo';
+import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw } from 'lucide-react';
 
 export default function App() {
-  // Authentication State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('admin_authenticated') === 'true' || 
-           sessionStorage.getItem('admin_authenticated') === 'true';
-  });
-
   // Database State
   const [students, setStudents] = useState<Student[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
@@ -33,21 +27,6 @@ export default function App() {
   const [errorPanelCollapsed, setErrorPanelCollapsed] = useState<boolean>(false);
   const [migrating, setMigrating] = useState<boolean>(false);
   const [migrationSuccess, setMigrationSuccess] = useState<string | null>(null);
-
-  const handleLoginSuccess = (rememberMe: boolean) => {
-    setIsAuthenticated(true);
-    if (rememberMe) {
-      localStorage.setItem('admin_authenticated', 'true');
-    } else {
-      sessionStorage.setItem('admin_authenticated', 'true');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('admin_authenticated');
-    sessionStorage.removeItem('admin_authenticated');
-  };
 
   const handleMigrateLocalData = async () => {
     setMigrating(true);
@@ -85,7 +64,7 @@ export default function App() {
         console.log("Local offline mode: loading from localStorage...");
         try {
           const data = getStoredData();
-          const alignedInstallments = recalculateInstallmentStatus(data.installments, "2026-06-17");
+          const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
           setStudents(data.students);
           setInstallments(alignedInstallments);
           setTransactions(data.transactions);
@@ -112,7 +91,7 @@ export default function App() {
           )
         ]);
 
-        const alignedInstallments = recalculateInstallmentStatus(data.installments, "2026-06-17");
+        const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
 
         setStudents(data.students);
         setInstallments(alignedInstallments);
@@ -164,7 +143,7 @@ export default function App() {
             list.push({ id: docSnap.id, ...docSnap.data() } as Installment);
           });
           if (list.length > 0) {
-            const aligned = recalculateInstallmentStatus(list, "2026-06-17");
+            const aligned = recalculateInstallmentStatus(list, getTodayDateString());
             setInstallments(aligned);
           }
         }, (err) => {
@@ -208,7 +187,7 @@ export default function App() {
         setDbError(errVal);
         setDbMode('local');
         const data = getStoredData();
-        const alignedInstallments = recalculateInstallmentStatus(data.installments, "2026-06-17");
+        const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
 
         setStudents(data.students);
         setInstallments(alignedInstallments);
@@ -236,7 +215,7 @@ export default function App() {
     nextLessons: Lesson[] = lessons,
     nextTeachers: Teacher[] = teachers
   ) => {
-    const aligned = recalculateInstallmentStatus(nextInstallments, "2026-06-17");
+    const aligned = recalculateInstallmentStatus(nextInstallments, getTodayDateString());
     
     // Save previous snapshot for diffing
     const oldState: AppDatabaseState = { students, installments, transactions, lessons, teachers };
@@ -431,23 +410,16 @@ export default function App() {
     return tx.type === 'incoming' ? sum + tx.amount : sum - tx.amount;
   }, 0);
 
-  if (!isAuthenticated) {
-    return <AdminLogin onLoginSuccess={handleLoginSuccess} />;
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white font-sans" id="db-loader-screen">
-        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-          <div className="p-4 bg-gradient-to-br from-indigo-500 to-indigo-750 rounded-2xl shadow-lg ring-1 ring-white/10 animate-pulse">
-            <GraduationCap className="w-10 h-10 text-white shrink-0" />
-          </div>
+      <div className="min-h-screen bg-slate-990 bg-slate-950 flex flex-col items-center justify-center p-6 text-white font-sans" id="db-loader-screen">
+        <div className="flex flex-col items-center gap-6 text-center max-w-sm">
+          <AcademyLogo size="lg" />
           <div className="space-y-2">
-            <h2 className="text-sm font-bold tracking-tight">Yağmur Yüksel Sanat Akademisi</h2>
             <p className="text-[11px] text-slate-400">Bulut veritabanı (Firebase cloud) senkronizasyonu gerçekleştiriliyor...</p>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-800 text-indigo-400 font-bold text-[10px] rounded-full border border-slate-700 mt-2">
-            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Veriler Yükleniyor
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-900 text-amber-500 font-bold text-[10px] rounded-full border border-slate-800 mt-2">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500" /> Veriler Yükleniyor
           </div>
         </div>
       </div>
@@ -458,14 +430,8 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="app-container">
       {/* Upper Navigation Brand Header */}
       <header className="bg-slate-900 text-white border-b border-slate-950 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sticky top-0 z-40">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-xl shadow-md">
-            <GraduationCap className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight font-sans">Yağmur Yüksel Sanat Akademisi</h1>
-            <p className="text-[11px] text-slate-400 font-medium">Öğrenci Kayıt ve Ödeme Planı Otomasyonu</p>
-          </div>
+        <div className="flex items-center py-1">
+          <AcademyLogo size="md" />
         </div>
 
          {/* Action Widgets */}
@@ -486,18 +452,8 @@ export default function App() {
           </div>
 
           <div className="text-slate-400 font-medium flex items-center gap-1.5">
-            <span className="text-slate-300">Çalışma Tarihi: 17 Haziran 2026</span>
+            <span className="text-slate-300">Çalışma Tarihi: {formatTurkishDate(getTodayDateString())}</span>
           </div>
-
-          <button
-            onClick={handleLogout}
-            className="cursor-pointer flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white px-3 py-1.5 rounded-lg border border-rose-500/20 text-rose-400 transition-all font-bold group"
-            id="header-logout-button"
-            title="Oturumu Kapat"
-          >
-            <LogOut className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-            <span>Çıkış Yap</span>
-          </button>
         </div>
       </header>
 

@@ -495,12 +495,28 @@ export function saveStoredData(
   }
 }
 
-export function recalculateInstallmentStatus(installments: Installment[], currentDateStr: string = "2026-06-17"): Installment[] {
+export function getTodayDateString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function formatTurkishDate(dateStr: string): string {
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+export function recalculateInstallmentStatus(installments: Installment[], currentDateStr?: string): Installment[] {
+  const actualDateStr = currentDateStr || getTodayDateString();
   return installments.map(inst => {
     if (inst.status === "paid" && inst.paidAmount >= inst.amount) {
       return inst;
     }
-    const isOverdue = inst.dueDate < currentDateStr && inst.paidAmount < inst.amount;
+    const isOverdue = inst.dueDate < actualDateStr && inst.paidAmount < inst.amount;
     return {
       ...inst,
       status: inst.paidAmount >= inst.amount ? "paid" : isOverdue ? "overdue" : "pending"

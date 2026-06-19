@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Student, Installment, CashTransaction } from '../types';
+import { getTodayDateString } from '../data/mockData';
 import { 
   TrendingUp, UserCheck, AlertCircle, Bookmark, DollarSign, Calendar, Clock, 
   ChevronRight, Database, Plus, Trash2, X, Wallet, Tag 
@@ -24,8 +25,8 @@ export default function Dashboard({
   onAddTransaction,
   onDeleteTransaction
 }: DashboardProps) {
-  // Current time is simulated as 2026-06-17
-  const CURRENT_DATE_STR = "2026-06-17";
+  // Current time is updated dynamically
+  const CURRENT_DATE_STR = getTodayDateString();
 
   // Expense management state
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);

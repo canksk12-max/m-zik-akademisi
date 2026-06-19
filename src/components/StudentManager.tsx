@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Student, Installment, Teacher } from '../types';
+import { getTodayDateString } from '../data/mockData';
 import { Plus, Search, Edit2, Trash2, GraduationCap, DollarSign, Calendar, ListFilter, AlertCircle, Sparkles, UserPlus, Save, X, Phone, Mail, User } from 'lucide-react';
 
 interface StudentManagerProps {
@@ -29,7 +30,7 @@ export default function StudentManager({ students, installments, teachers = [], 
   const [parentName, setParentName] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [course, setCourse] = useState('Piyano');
-  const [registrationDate, setRegistrationDate] = useState('2026-06-17');
+  const [registrationDate, setRegistrationDate] = useState(getTodayDateString());
   const [monthlyFee, setMonthlyFee] = useState<number>(5000);
   const [installmentCount, setInstallmentCount] = useState<number>(36);
   const [downPayment, setDownPayment] = useState<number>(2000);
@@ -79,7 +80,7 @@ export default function StudentManager({ students, installments, teachers = [], 
     setParentName('');
     setParentPhone('');
     setCourse('Piyano');
-    setRegistrationDate('2026-06-17');
+    setRegistrationDate(getTodayDateString());
     setMonthlyFee(5000);
     setInstallmentCount(36);
     setDownPayment(2000);

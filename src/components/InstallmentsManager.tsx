@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Installment, Student, CashTransaction } from '../types';
+import { getTodayDateString } from '../data/mockData';
 import { Search, DollarSign, Calendar, CheckCircle, Smartphone, AlertCircle, Printer, X, CreditCard, Wallet, Landmark, RefreshCw, Send, Edit2, Save, Plus } from 'lucide-react';
 
 interface InstallmentsManagerProps {
@@ -12,7 +13,7 @@ interface InstallmentsManagerProps {
 }
 
 export default function InstallmentsManager({ installments, students, onPayInstallment, onResetInstallment, onUpdateInstallment, onAddInstallment }: InstallmentsManagerProps) {
-  const CURRENT_DATE_STR = "2026-06-17";
+  const CURRENT_DATE_STR = getTodayDateString();
 
   // Search/Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,7 +23,7 @@ export default function InstallmentsManager({ installments, students, onPayInsta
   const [payingInstallment, setPayingInstallment] = useState<Installment | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string>('Bank Transfer');
-  const [paymentDate, setPaymentDate] = useState<string>('2026-06-17');
+  const [paymentDate, setPaymentDate] = useState<string>(getTodayDateString());
 
   // Editing installment state
   const [editingInst, setEditingInst] = useState<Installment | null>(null);
@@ -150,7 +151,7 @@ export default function InstallmentsManager({ installments, students, onPayInsta
     // Suggest the remaining balance as payment amount
     setPaymentAmount(inst.amount - inst.paidAmount);
     setPaymentMethod('Bank Transfer');
-    setPaymentDate('2026-06-17');
+    setPaymentDate(getTodayDateString());
   };
 
   const handleSavePayment = (e: React.FormEvent) => {
