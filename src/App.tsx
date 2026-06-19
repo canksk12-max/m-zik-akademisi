@@ -9,7 +9,7 @@ import InstallmentsManager from './components/InstallmentsManager';
 import CalendarManager from './components/CalendarManager';
 import TeacherManager from './components/TeacherManager';
 import AcademyLogo from './components/AcademyLogo';
-import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Trash2, Smartphone, Download, X, Share2 } from 'lucide-react';
 
 export default function App() {
   // Database State
@@ -28,6 +28,60 @@ export default function App() {
   const [migrationSuccess, setMigrationSuccess] = useState<string | null>(null);
   const [wiping, setWiping] = useState<boolean>(false);
   const [autoWiped, setAutoWiped] = useState<boolean>(false);
+
+  // PWA Support States
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState<boolean>(false);
+  const [showPwaGuide, setShowPwaGuide] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (localStorage.getItem('or_pwa_dismissed') !== 'true') {
+        setShowInstallBanner(true);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Check if launching from installed/standalone app
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+      || (navigator as any).standalone 
+      || document.referrer.includes('android-app://');
+
+    if (isStandalone) {
+      setShowInstallBanner(false);
+    } else {
+      // Force trigger the install indicator banner for mobile devices if not dismissed
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile && localStorage.getItem('or_pwa_dismissed') !== 'true') {
+        setShowInstallBanner(true);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const triggerInstallPrompt = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`PWA installation response outcome: ${outcome}`);
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+    } else {
+      // Show manual multi-device guided popup
+      setShowPwaGuide(true);
+    }
+  };
+
+  const dismissPwaBanner = () => {
+    localStorage.setItem('or_pwa_dismissed', 'true');
+    setShowInstallBanner(false);
+  };
 
   const handleWipeDatabase = async () => {
     if (!window.confirm("DİKKAT: Öğrenci, Eğitmen, Taksit, Ders ve Kasa kayıtlarının TÜMÜ kalıcı olarak silinecektir. Bu işlem geri alınamaz!\n\nSeçilmiş tüm örnek veriler temizlenecek ve boş bir veritabanı kurulacaktır. Devam etmek istiyor musunuz?")) {
@@ -533,6 +587,45 @@ export default function App() {
         {/* Dynamic Inner Router Workspace */}
         <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
 
+          {/* PWA Install Banner */}
+          {showInstallBanner && (
+            <div className="mb-6 bg-gradient-to-r from-indigo-950 to-[#0e1726] border border-indigo-900 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-md animate-fade-in text-white relative overflow-hidden" id="pwa-install-app-banner">
+              {/* Soft decorative golden glow blur circles */}
+              <div className="absolute right-0 top-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+              
+              <div className="flex items-center gap-3.5 relative z-10">
+                <div className="p-1.5 bg-gradient-to-tr from-amber-400 to-amber-200 rounded-xl text-indigo-950 shrink-0 shadow-md">
+                  <img src="/icon-192.png" alt="Logo" className="w-8 h-8 rounded-lg object-cover" referrerPolicy="no-referrer" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-amber-350 font-sans tracking-wide flex items-center gap-1.5">
+                    YY Akademiyi Telefona Yükle!
+                    <span className="text-[9px] bg-amber-400/20 text-amber-200 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Hızlı Erişim</span>
+                  </h3>
+                  <p className="text-xs text-indigo-150 mt-0.5 leading-relaxed">
+                    Telefonunuzda tam ekran bir uygulama olarak açın; kayıtlarınıza ve ders planınıza anında ulaşın.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto relative z-10">
+                <button
+                  onClick={triggerInstallPrompt}
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-indigo-950 rounded-xl text-xs font-black transition-all shadow-sm shadow-amber-400/10 hover:shadow-amber-400/20 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Şimdi Yükle
+                </button>
+                <button
+                  onClick={dismissPwaBanner}
+                  className="flex items-center justify-center p-2 hover:bg-white/10 rounded-xl text-indigo-300 hover:text-white transition-colors cursor-pointer"
+                  title="Yükleme uyarısını gizle"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Auto-wipe Clean Slate Banner */}
           {autoWiped && (
             <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3 shadow-sm animate-fade-in" id="autowipe-success-banner">
@@ -738,6 +831,98 @@ export default function App() {
 
         </main>
       </div>
+
+      {/* PWA Instruction Guide Modal */}
+      {showPwaGuide && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in" id="pwa-guide-overlay">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-gray-100 shadow-2xl overflow-hidden animate-scale-up">
+            <div className="p-5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 font-sans">YY Akademiyi Telefonunuza Ekleyin</h3>
+                  <p className="text-[10px] text-slate-500 font-medium">Uygulama Kurulum Kılavuzu</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowPwaGuide(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              <div className="bg-indigo-50/50 border border-indigo-100/40 rounded-xl p-3.5 flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-amber-400 flex items-center justify-center shrink-0 shadow-xs">
+                  <img src="/icon-192.png" alt="Academy App Icon" className="w-6 h-6 rounded-md object-cover" referrerPolicy="no-referrer" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-bold text-slate-800">Yağmur Yüksel Sanat Akademisi</span>
+                  <p className="text-slate-500 text-[11px] mt-0.5">Uygulama simgesi telefonunuzun ana ekranına bu gold amblem logosuyla yerleşecektir.</p>
+                </div>
+              </div>
+
+              {/* iOS Guide */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-sm font-sans font-bold">1</span>
+                  <span>Apple (iPhone / iPad) Telefonlar İçin:</span>
+                </div>
+                <div className="pl-6 text-xs text-slate-600 space-y-2">
+                  <p className="flex items-start gap-1.5 leading-relaxed">
+                    <span className="text-indigo-600 font-bold shrink-0">a.</span>
+                    <span>Safari tarayıcınızın alt barındaki <strong>Paylaş/Yönlendir</strong> <Share2 className="w-3.5 h-3.5 inline mx-0.5 text-indigo-600 inline-block align-text-bottom" /> simgesine tıklayın.</span>
+                  </p>
+                  <p className="flex items-start gap-1.5 leading-relaxed">
+                    <span className="text-indigo-600 font-bold shrink-0">b.</span>
+                    <span>Açılan menüyü yukarı kaydırarak <strong>"Ana Ekrana Ekle"</strong> seçeneğini seçin.</span>
+                  </p>
+                  <p className="flex items-start gap-1.5 leading-relaxed">
+                    <span className="text-indigo-600 font-bold shrink-0">c.</span>
+                    <span>Açılan pencerenin sağ üst köşesinden <strong>"Ekle"</strong> butonuna dokunarak kurulumu tamamlayın.</span>
+                  </p>
+                </div>
+              </div>
+
+              <hr className="border-gray-100" />
+
+              {/* Android Guide */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-950">
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-sm font-sans font-bold">2</span>
+                  <span>Android (Chrome / Samsung) Telefonlar İçin:</span>
+                </div>
+                <div className="pl-6 text-xs text-slate-600 space-y-2">
+                  <p className="flex items-start gap-1.5 leading-relaxed">
+                    <span className="text-indigo-600 font-bold shrink-0">a.</span>
+                    <span>Sağ üstteki <strong>Üç Nokta (...)</strong> menüsüne tıklayın.</span>
+                  </p>
+                  <p className="flex items-start gap-1.5 leading-relaxed">
+                    <span className="text-indigo-600 font-bold shrink-0">b.</span>
+                    <span>Menüden <strong>"Ana ekrana ekle"</strong> ya da <strong>"Uygulamayı yükle"</strong> seçeneğine dokunuş yapın.</span>
+                  </p>
+                  <p className="flex items-start gap-1.5 leading-relaxed">
+                    <span className="text-indigo-600 font-bold shrink-0">c.</span>
+                    <span>Çıkan kurulum onay kutusunda <strong>"Yükle"</strong> butonuna tıklayarak işlemi tamamlayın.</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowPwaGuide(false)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-indigo-600/10"
+              >
+                Anladım, Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Deep Footer */}
       <footer className="bg-white border-t border-gray-150 py-4 px-6 text-center text-xs text-gray-400 font-medium">
