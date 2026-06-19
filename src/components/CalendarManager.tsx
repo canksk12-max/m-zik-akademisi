@@ -168,7 +168,7 @@ export default function CalendarManager({
     }
     const cleanNumber = formatWhatsAppPhone(customPhone);
     const encodedText = encodeURIComponent(messageText);
-    const url = `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodedText}`;
+    const url = `https://wa.me/${cleanNumber}?text=${encodedText}`;
     window.open(url, '_blank');
   };
   
@@ -884,6 +884,17 @@ export default function CalendarManager({
             {/* Modal Body */}
             <div className="p-5 space-y-4 text-xs">
               
+              {/* Educational info message explaining safety & compliance with WhatsApp browser redirection protocols */}
+              <div className="bg-emerald-50/80 border border-emerald-100 rounded-xl p-3 text-[11px] text-emerald-850 space-y-1">
+                <span className="font-bold flex items-center gap-1 text-emerald-850">
+                  <span className="text-sm">ℹ️</span> Otomatik Hazırlık Sistemi
+                </span>
+                <p className="leading-relaxed font-medium">
+                  WhatsApp güvenlik ve gizlilik kuralları (anti-spam yasaları) gereği hiçbir web sitesi sizin adınıza arka planda gizlice doğrudan mesaj <span className="underline font-bold">gönderemez</span>. 
+                  Sistemimiz telefon numarasını ve Türkçe özel şablonu saniyeler içinde hazırlar ve sizi WhatsApp'a yönlendirir. Açılan ekranda sadece <strong className="font-extrabold">"Gönder" (Send)</strong> butonuna basmanız yeterlidir!
+                </p>
+              </div>
+
               {/* Highlight summary of the class */}
               <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 flex justify-between items-center">
                 <div>
