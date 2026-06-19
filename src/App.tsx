@@ -17,6 +17,7 @@ export default function App() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [dbMode, setDbMode] = useState<'firebase' | 'local'>('firebase');
 
   // Active UI Navigation state
   const [activeTab, setActiveTab] = useState<'dashboard' | 'students' | 'installments' | 'calendar' | 'teachers'>('dashboard');
@@ -26,7 +27,16 @@ export default function App() {
     async function initDatabase() {
       try {
         console.log("Fetching live data from Firestore...");
-        const data = await loadFirestoreData();
+        
+        // Wrap with a guaranteed 2000ms timeout race so the app never gets stuck 
+        // if user's custom Firestore is slow, locked, or unconfigured.
+        const data = await Promise.race([
+          loadFirestoreData(),
+          new Promise<AppDatabaseState>((_, reject) => 
+            setTimeout(() => reject(new Error("Firestore connection timed out")), 2000)
+          )
+        ]);
+
         const alignedInstallments = recalculateInstallmentStatus(data.installments, "2026-06-17");
 
         setStudents(data.students);
@@ -34,11 +44,13 @@ export default function App() {
         setTransactions(data.transactions);
         setLessons(data.lessons);
         setTeachers(data.teachers);
+        setDbMode('firebase');
 
         // Pre-cache to localStorage as well for instant-responsiveness
         saveStoredData(data.students, alignedInstallments, data.transactions, data.lessons, data.teachers);
       } catch (err) {
         console.warn("Could not load from Firestore, using offline storage fallback:", err);
+        setDbMode('local');
         const data = getStoredData();
         const alignedInstallments = recalculateInstallmentStatus(data.installments, "2026-06-17");
 
@@ -83,8 +95,12 @@ export default function App() {
     // Save to localStorage immediately so student is updated on UI inside iframe instantly with zero latency
     saveStoredData(nextStudents, aligned, nextTransactions, nextLessons, nextTeachers);
 
-    // Sync incrementally with Firestore in the background
-    syncStateWithFirestore(oldState, newState);
+    // Sync incrementally with Firestore in the background, catch errors gracefully
+    if (dbMode === 'firebase') {
+      syncStateWithFirestore(oldState, newState).catch(err => {
+        console.warn("Background cloud syncing error, running in hybrid cache mode:", err);
+      });
+    }
   };
 
   // Add Student Handler
@@ -286,8 +302,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Action Widgets */}
-        <div className="flex items-center gap-4 text-xs font-semibold">
+         {/* Action Widgets */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-semibold">
           <div className="flex items-center gap-1.5 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
             <Landmark className="w-4 h-4 text-emerald-400" />
             <span className="text-slate-300">Aktif Kasa:</span>
@@ -296,8 +312,14 @@ export default function App() {
             </span>
           </div>
 
-          <div className="text-slate-405 font-medium flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+          <div className="flex items-center gap-1.5 bg-slate-805 bg-slate-800/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
+            <span className={`w-2 h-2 rounded-full ${dbMode === 'firebase' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <span className="text-[11px] text-slate-300 font-medium">
+              {dbMode === 'firebase' ? 'Bulut Bağlantısı Aktif' : 'Yerel Mod (Offline)'}
+            </span>
+          </div>
+
+          <div className="text-slate-400 font-medium flex items-center gap-1.5">
             <span className="text-slate-300">Çalışma Tarihi: 17 Haziran 2026</span>
           </div>
         </div>
