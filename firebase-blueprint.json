@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "student": {
+      "title": "student",
+      "description": "Öğrenci kayıt bilgileri",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "parentName": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "course": { "type": "string" },
+        "registrationDate": { "type": "string" },
+        "totalFee": { "type": "number" },
+        "downPayment": { "type": "number" },
+        "installmentCount": { "type": "number" },
+        "notes": { "type": "string" },
+        "status": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "teacher": {
+      "title": "teacher",
+      "description": "Eğitmen kadrosu bilgileri",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "branch": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "installment": {
+      "title": "installment",
+      "description": "Ödeme taksitleri detayları",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "installmentNumber": { "type": "number" },
+        "dueDate": { "type": "string" },
+        "amount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "paymentDate": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "studentId"]
+    },
+    "transaction": {
+      "title": "transaction",
+      "description": "Kasa işlem hareketleri (gelir/gider)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "installmentId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string" },
+        "category": { "type": "string" },
+        "date": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "amount", "type"]
+    },
+    "lesson": {
+      "title": "lesson",
+      "description": "Haftalık ders programı koordinatları",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "dayOfWeek": { "type": "number" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "course": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["id", "studentId", "dayOfWeek"]
+    }
+  },
+  "firestore": {
+    "students/{studentId}": {
+      "schema": "student",
+      "description": "Öğrenci kayıt bilgileri"
+    },
+    "teachers/{teacherId}": {
+      "schema": "teacher",
+      "description": "Eğitmen kadrosu bilgileri"
+    },
+    "installments/{installmentId}": {
+      "schema": "installment",
+      "description": "Ödeme taksitleri detayları"
+    },
+    "transactions/{transactionId}": {
+      "schema": "transaction",
+      "description": "Kasa işlem hareketleri"
+    },
+    "lessons/{lessonId}": {
+      "schema": "lesson",
+      "description": "Haftalık ders programı koordinatları"
+    }
+  }
+}
