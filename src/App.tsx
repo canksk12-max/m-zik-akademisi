@@ -10,7 +10,7 @@ import InstallmentsManager from './components/InstallmentsManager';
 import CalendarManager from './components/CalendarManager';
 import TeacherManager from './components/TeacherManager';
 import AcademyLogo from './components/AcademyLogo';
-import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function App() {
   // Database State
@@ -20,7 +20,7 @@ export default function App() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [dbMode, setDbMode] = useState<'firebase' | 'local'>('local');
+  const [dbMode, setDbMode] = useState<'firebase' | 'local'>('firebase');
   const [dbError, setDbError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState<number>(0);
   const [provider, setProvider] = useState<FirebaseProvider>(getFirebaseProvider());
@@ -531,6 +531,77 @@ export default function App() {
 
         {/* Dynamic Inner Router Workspace */}
         <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
+
+          {/* Bulut Bağlantısı ve Veri Eşitleme Paneli */}
+          {dbMode === 'local' ? (
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-fade-in" id="firebase-connection-banner">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0 mt-0.5">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 font-sans">Yerel Çevrimdışı Çalışma Modu</h3>
+                  <p className="text-xs text-slate-600 mt-1">Uygulamanız şu anda verileri tarayıcınıza kaydediyor. Telefonunuzla ve diğer cihazlarla ortak canlı senkronizasyon için Bulut bağlantısına geçin.</p>
+                  {dbError && (
+                    <div className="mt-1.5 text-[10px] text-rose-600 font-semibold bg-rose-50/50 px-2 py-1 rounded border border-rose-100/50 inline-block text-left">
+                      Bağlantı hatası: {dbError}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full md:w-auto mt-2 md:mt-0">
+                <button
+                  onClick={() => {
+                    setDbError(null);
+                    setDbMode('firebase');
+                    setRetryCount(prev => prev + 1);
+                  }}
+                  className="cursor-pointer flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Buluta Bağlanmayı Dene
+                </button>
+                <button
+                  onClick={handleMigrateLocalData}
+                  disabled={migrating}
+                  className="cursor-pointer flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                >
+                  {migrating ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Aktarılıyor...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Yerel Verileri Buluta Eşitle (Yükle)
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Eşitleme Başarılı Mesaj Paneli */
+            migrationSuccess && (
+              <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3 shadow-sm animate-fade-in" id="migration-success-banner">
+                <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600 shrink-0">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-900 font-sans">Bulut Senkronizasyonu Başarılı!</h3>
+                    <button 
+                      onClick={() => setMigrationSuccess(null)}
+                      className="text-slate-400 hover:text-slate-600 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Kapat
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1">{migrationSuccess}</p>
+                </div>
+              </div>
+            )
+          )}
 
           {activeTab === 'dashboard' && (
             <div className="animate-fade-in">
