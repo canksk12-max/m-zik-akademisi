@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Student, Installment, CashTransaction, Lesson, Teacher } from './types';
 import { getStoredData, saveStoredData, recalculateInstallmentStatus } from './data/mockData';
-import { loadFirestoreData, syncStateWithFirestore, AppDatabaseState } from './data/firebaseService';
+import { loadFirestoreData, syncStateWithFirestore, forceUploadLocalDataToFirestore, AppDatabaseState } from './data/firebaseService';
 import { onSnapshot, collection } from 'firebase/firestore';
-import { db } from './data/firebase';
+import { db, getFirebaseProvider, setFirebaseProvider, FirebaseProvider } from './data/firebase';
 import Dashboard from './components/Dashboard';
 import StudentManager from './components/StudentManager';
 import InstallmentsManager from './components/InstallmentsManager';
@@ -19,7 +19,36 @@ export default function App() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [dbMode, setDbMode] = useState<'firebase' | 'local'>('firebase');
+  const [dbMode, setDbMode] = useState<'firebase' | 'local'>('local');
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState<number>(0);
+  const [provider, setProvider] = useState<FirebaseProvider>(getFirebaseProvider());
+  const [errorPanelCollapsed, setErrorPanelCollapsed] = useState<boolean>(false);
+  const [migrating, setMigrating] = useState<boolean>(false);
+  const [migrationSuccess, setMigrationSuccess] = useState<string | null>(null);
+
+  const handleMigrateLocalData = async () => {
+    setMigrating(true);
+    setMigrationSuccess(null);
+    try {
+      const localData = getStoredData();
+      await forceUploadLocalDataToFirestore(localData);
+      setMigrationSuccess("Tebrikler! Yerel verileriniz başarıyla bulut veritabanına aktarıldı. Artık cep telefonunuzdan ve tüm diğer cihazlardan aynı ortak verileri görebilirsiniz!");
+      setRetryCount(prev => prev + 1); // trigger state sync from Firestore to update local view
+    } catch (err) {
+      console.error(err);
+      setMigrationSuccess(`Aktarım başarısız oldu: ${err instanceof Error ? err.message : String(err)}. Lütfen bulut bağlantınızın kurulduğunu (Internet / Firebase) kontrol edip tekrar deneyin.`);
+    } finally {
+      setMigrating(false);
+    }
+  };
+
+  const handleSwitchProvider = (newProvider: FirebaseProvider) => {
+    setFirebaseProvider(newProvider);
+    setProvider(newProvider);
+    localStorage.removeItem('app_cached_data');
+    window.location.reload();
+  };
 
   // Active UI Navigation state
   const [activeTab, setActiveTab] = useState<'dashboard' | 'students' | 'installments' | 'calendar' | 'teachers'>('dashboard');
@@ -29,15 +58,35 @@ export default function App() {
     let unsubscribes: (() => void)[] = [];
 
     async function initDatabase() {
+      setLoading(true);
+      if (dbMode === 'local') {
+        console.log("Local offline mode: loading from localStorage...");
+        try {
+          const data = getStoredData();
+          const alignedInstallments = recalculateInstallmentStatus(data.installments, "2026-06-17");
+          setStudents(data.students);
+          setInstallments(alignedInstallments);
+          setTransactions(data.transactions);
+          setLessons(data.lessons || []);
+          setTeachers(data.teachers || []);
+          setDbError(null);
+        } catch (err) {
+          console.error("Local data initialization failed:", err);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
         console.log("Fetching live data from Firestore...");
         
-        // Wrap with a guaranteed 2000ms timeout race so the app never gets stuck 
+        // Wrap with a guaranteed 3000ms timeout race so the app never gets stuck 
         // if user's custom Firestore is slow, locked, or unconfigured.
         const data = await Promise.race([
           loadFirestoreData(),
           new Promise<AppDatabaseState>((_, reject) => 
-            setTimeout(() => reject(new Error("Firestore connection timed out")), 2000)
+            setTimeout(() => reject(new Error("Firestore connection timed out")), 3000)
           )
         ]);
 
@@ -49,6 +98,7 @@ export default function App() {
         setLessons(data.lessons);
         setTeachers(data.teachers);
         setDbMode('firebase');
+        setDbError(null);
 
         // Pre-cache to localStorage as well for instant-responsiveness
         saveStoredData(data.students, alignedInstallments, data.transactions, data.lessons, data.teachers);
@@ -66,7 +116,10 @@ export default function App() {
           if (list.length > 0) {
             setStudents(list);
           }
-        }, (err) => console.warn("Students real-time sync error:", err));
+        }, (err) => {
+          console.warn("Students real-time sync error:", err);
+          setDbError(err.message);
+        });
 
         const unsubTeachers = onSnapshot(collection(db, "teachers"), (snapshot) => {
           if (snapshot.metadata.hasPendingWrites) return;
@@ -77,7 +130,10 @@ export default function App() {
           if (list.length > 0) {
             setTeachers(list);
           }
-        }, (err) => console.warn("Teachers real-time sync error:", err));
+        }, (err) => {
+          console.warn("Teachers real-time sync error:", err);
+          setDbError(err.message);
+        });
 
         const unsubInstallments = onSnapshot(collection(db, "installments"), (snapshot) => {
           if (snapshot.metadata.hasPendingWrites) return;
@@ -89,7 +145,10 @@ export default function App() {
             const aligned = recalculateInstallmentStatus(list, "2026-06-17");
             setInstallments(aligned);
           }
-        }, (err) => console.warn("Installments real-time sync error:", err));
+        }, (err) => {
+          console.warn("Installments real-time sync error:", err);
+          setDbError(err.message);
+        });
 
         const unsubTransactions = onSnapshot(collection(db, "transactions"), (snapshot) => {
           if (snapshot.metadata.hasPendingWrites) return;
@@ -100,7 +159,10 @@ export default function App() {
           if (list.length > 0) {
             setTransactions(list);
           }
-        }, (err) => console.warn("Transactions real-time sync error:", err));
+        }, (err) => {
+          console.warn("Transactions real-time sync error:", err);
+          setDbError(err.message);
+        });
 
         const unsubLessons = onSnapshot(collection(db, "lessons"), (snapshot) => {
           if (snapshot.metadata.hasPendingWrites) return;
@@ -111,12 +173,17 @@ export default function App() {
           if (list.length > 0) {
             setLessons(list);
           }
-        }, (err) => console.warn("Lessons real-time sync error:", err));
+        }, (err) => {
+          console.warn("Lessons real-time sync error:", err);
+          setDbError(err.message);
+        });
 
         unsubscribes.push(unsubStudents, unsubTeachers, unsubInstallments, unsubTransactions, unsubLessons);
 
       } catch (err) {
         console.warn("Could not load from Firestore, using offline storage fallback:", err);
+        const errVal = err instanceof Error ? err.message : String(err);
+        setDbError(errVal);
         setDbMode('local');
         const data = getStoredData();
         const alignedInstallments = recalculateInstallmentStatus(data.installments, "2026-06-17");
@@ -137,7 +204,7 @@ export default function App() {
       console.log("Cleaning up live Firestore listeners...");
       unsubscribes.forEach(unsub => unsub());
     };
-  }, []);
+  }, [retryCount]);
 
   // Sync to database layer
   const syncAndSave = (
@@ -472,6 +539,7 @@ export default function App() {
 
         {/* Dynamic Inner Router Workspace */}
         <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
+
           {activeTab === 'dashboard' && (
             <div className="animate-fade-in">
               <div className="mb-6">

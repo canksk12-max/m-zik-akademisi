@@ -299,3 +299,39 @@ export async function syncStateWithFirestore(
   }
 }
 
+/**
+ * Forcefully uploads local state data to Firestore, overwriting any remote collections with the local data.
+ * This is extremely useful for migrating offline work to the live Cloud Database.
+ */
+export async function forceUploadLocalDataToFirestore(state: AppDatabaseState) {
+  try {
+    console.log("Starting forced migration of local data to Firestore...");
+    
+    // 1. Upload Students
+    for (const student of state.students) {
+      await setDoc(doc(db, "students", student.id), sanitizeForFirestore(student));
+    }
+    // 2. Upload Teachers
+    for (const teacher of state.teachers) {
+      await setDoc(doc(db, "teachers", teacher.id), sanitizeForFirestore(teacher));
+    }
+    // 3. Upload Installments
+    for (const inst of state.installments) {
+      await setDoc(doc(db, "installments", inst.id), sanitizeForFirestore(inst));
+    }
+    // 4. Upload Transactions
+    for (const tx of state.transactions) {
+      await setDoc(doc(db, "transactions", tx.id), sanitizeForFirestore(tx));
+    }
+    // 5. Upload Lessons
+    for (const les of state.lessons) {
+      await setDoc(doc(db, "lessons", les.id), sanitizeForFirestore(les));
+    }
+    console.log("Forced migration to Firestore completed successfully!");
+  } catch (error) {
+    console.error("Migration failed:", error);
+    throw error;
+  }
+}
+
+
