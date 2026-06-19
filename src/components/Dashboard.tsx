@@ -94,7 +94,7 @@ export default function Dashboard({
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-tight">Kayıtlı Öğrenci</div>
             <div className="text-2xl font-bold font-sans text-gray-900 mt-0.5">{students.length} Öğrenci</div>
-            <div className="text-[11px] text-gray-500 mt-0.5">{activeStudents} aktif, {graduatedStudents} mezun</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">Sistemde kayıtlı toplam öğrenci</div>
           </div>
         </div>
 

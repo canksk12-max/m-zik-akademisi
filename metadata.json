@@ -1,6 +1,6 @@
 {
-  "name": "Öğrenci ve Ödeme Takip Sistemi",
-  "description": "Eğitim kurumları için gelişmiş öğrenci kayıt, taksitli ödeme planı oluşturma, tahsilat ve kasa takip sistemi.",
+  "name": "Ogrenci ve Odeme Takip Sistemi",
+  "description": "Egitim kurumlari icin gelismis ogrenci kayit, taksitli odeme plani olusturma, tahsilat ve kasa takip sistemi.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

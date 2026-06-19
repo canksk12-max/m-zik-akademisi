@@ -248,8 +248,6 @@ export default function StudentManager({ students, installments, teachers = [], 
             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:border-indigo-500 cursor-pointer shadow-3xs"
           >
             <option value="">Tüm Durumlar</option>
-            <option value="active">Aktif</option>
-            <option value="graduated">Mezun</option>
             <option value="frozen">Dondurulmuş</option>
           </select>
 
@@ -335,15 +333,11 @@ export default function StudentManager({ students, installments, teachers = [], 
                         <div className="text-[10px] text-gray-400">Ödenen Toplam</div>
                       </td>
                       <td className="p-4 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                          student.status === 'active' 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                            : student.status === 'graduated'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                            : 'bg-zinc-100 text-zinc-650'
-                        }`}>
-                          {student.status === 'active' ? 'Aktif' : student.status === 'graduated' ? 'Mezun' : 'Donduruldu'}
-                        </span>
+                        {student.status === 'frozen' && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-100 text-zinc-650">
+                            Donduruldu
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-center">
                         <div className="flex items-center justify-center min-h-[38px]">
