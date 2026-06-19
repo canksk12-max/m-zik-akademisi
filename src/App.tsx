@@ -9,9 +9,16 @@ import StudentManager from './components/StudentManager';
 import InstallmentsManager from './components/InstallmentsManager';
 import CalendarManager from './components/CalendarManager';
 import TeacherManager from './components/TeacherManager';
-import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw } from 'lucide-react';
+import AdminLogin from './components/AdminLogin';
+import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, LogOut } from 'lucide-react';
 
 export default function App() {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('admin_authenticated') === 'true' || 
+           sessionStorage.getItem('admin_authenticated') === 'true';
+  });
+
   // Database State
   const [students, setStudents] = useState<Student[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
@@ -26,6 +33,21 @@ export default function App() {
   const [errorPanelCollapsed, setErrorPanelCollapsed] = useState<boolean>(false);
   const [migrating, setMigrating] = useState<boolean>(false);
   const [migrationSuccess, setMigrationSuccess] = useState<string | null>(null);
+
+  const handleLoginSuccess = (rememberMe: boolean) => {
+    setIsAuthenticated(true);
+    if (rememberMe) {
+      localStorage.setItem('admin_authenticated', 'true');
+    } else {
+      sessionStorage.setItem('admin_authenticated', 'true');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('admin_authenticated');
+    sessionStorage.removeItem('admin_authenticated');
+  };
 
   const handleMigrateLocalData = async () => {
     setMigrating(true);
@@ -409,6 +431,10 @@ export default function App() {
     return tx.type === 'incoming' ? sum + tx.amount : sum - tx.amount;
   }, 0);
 
+  if (!isAuthenticated) {
+    return <AdminLogin onLoginSuccess={handleLoginSuccess} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white font-sans" id="db-loader-screen">
@@ -462,6 +488,16 @@ export default function App() {
           <div className="text-slate-400 font-medium flex items-center gap-1.5">
             <span className="text-slate-300">Çalışma Tarihi: 17 Haziran 2026</span>
           </div>
+
+          <button
+            onClick={handleLogout}
+            className="cursor-pointer flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white px-3 py-1.5 rounded-lg border border-rose-500/20 text-rose-400 transition-all font-bold group"
+            id="header-logout-button"
+            title="Oturumu Kapat"
+          >
+            <LogOut className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            <span>Çıkış Yap</span>
+          </button>
         </div>
       </header>
 
