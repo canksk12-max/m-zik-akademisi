@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Student, Installment, CashTransaction, Lesson, Teacher } from './types';
 import { getStoredData, saveStoredData, recalculateInstallmentStatus, getTodayDateString, formatTurkishDate } from './data/mockData';
-import { loadFirestoreData, syncStateWithFirestore, forceUploadLocalDataToFirestore, AppDatabaseState } from './data/firebaseService';
-import { onSnapshot, collection } from 'firebase/firestore';
+import { loadFirestoreData, syncStateWithFirestore, forceUploadLocalDataToFirestore, clearAllFirestoreData, AppDatabaseState } from './data/firebaseService';
 import { db, getFirebaseProvider, setFirebaseProvider, FirebaseProvider } from './data/firebase';
 import Dashboard from './components/Dashboard';
 import StudentManager from './components/StudentManager';
@@ -10,7 +9,7 @@ import InstallmentsManager from './components/InstallmentsManager';
 import CalendarManager from './components/CalendarManager';
 import TeacherManager from './components/TeacherManager';
 import AcademyLogo from './components/AcademyLogo';
-import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
 
 export default function App() {
   // Database State
@@ -27,6 +26,40 @@ export default function App() {
   const [errorPanelCollapsed, setErrorPanelCollapsed] = useState<boolean>(false);
   const [migrating, setMigrating] = useState<boolean>(false);
   const [migrationSuccess, setMigrationSuccess] = useState<string | null>(null);
+  const [wiping, setWiping] = useState<boolean>(false);
+  const [autoWiped, setAutoWiped] = useState<boolean>(false);
+
+  const handleWipeDatabase = async () => {
+    if (!window.confirm("DİKKAT: Öğrenci, Eğitmen, Taksit, Ders ve Kasa kayıtlarının TÜMÜ kalıcı olarak silinecektir. Bu işlem geri alınamaz!\n\nSeçilmiş tüm örnek veriler temizlenecek ve boş bir veritabanı kurulacaktır. Devam etmek istiyor musunuz?")) {
+      return;
+    }
+    
+    setWiping(true);
+    setLoading(true);
+    try {
+      if (dbMode === 'firebase') {
+        await clearAllFirestoreData();
+      }
+      
+      // Update local storage empty slate as well
+      localStorage.setItem("or_initialized", "true");
+      saveStoredData([], [], [], [], []);
+      
+      setStudents([]);
+      setTeachers([]);
+      setInstallments([]);
+      setTransactions([]);
+      setLessons([]);
+      
+      setMigrationSuccess("Tüm veriler başarıyla sıfırlandı! Artık sisteminiz tamamen temiz bir sayfaya sahip. Kendi öğrenci ve eğitmen kadronuzu eklemeye başlayabilirsiniz.");
+    } catch (err) {
+      console.error("Wipe failed:", err);
+      alert("Veritabanı temizlenirken hata oluştu: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setWiping(false);
+      setLoading(false);
+    }
+  };
 
   const handleMigrateLocalData = async () => {
     setMigrating(true);
@@ -56,20 +89,31 @@ export default function App() {
 
   // Load and initialize from Firestore (falls back to localStorage or seeded mock data)
   useEffect(() => {
-    let unsubscribes: (() => void)[] = [];
-
     async function initDatabase() {
       setLoading(true);
       if (dbMode === 'local') {
         console.log("Local offline mode: loading from localStorage...");
         try {
           const data = getStoredData();
-          const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
-          setStudents(data.students);
-          setInstallments(alignedInstallments);
-          setTransactions(data.transactions);
-          setLessons(data.lessons || []);
-          setTeachers(data.teachers || []);
+          const hasMockStudents = data.students.some(s => s.id === 'std-1') || data.teachers.some(t => t.id === 'tch-1');
+          if (hasMockStudents) {
+            console.log("Mock data detected locally. Auto-wiping...");
+            localStorage.setItem("or_initialized", "true");
+            saveStoredData([], [], [], [], []);
+            setStudents([]);
+            setInstallments([]);
+            setTransactions([]);
+            setLessons([]);
+            setTeachers([]);
+            setAutoWiped(true);
+          } else {
+            const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
+            setStudents(data.students);
+            setInstallments(alignedInstallments);
+            setTransactions(data.transactions);
+            setLessons(data.lessons || []);
+            setTeachers(data.teachers || []);
+          }
           setDbError(null);
         } catch (err) {
           console.error("Local data initialization failed:", err);
@@ -82,109 +126,64 @@ export default function App() {
       try {
         console.log("Fetching live data from Firestore...");
         
-        // Wrap with a guaranteed 3000ms timeout race so the app never gets stuck 
+        // Wrap with a guaranteed 25000ms timeout race so the app never gets stuck 
         // if user's custom Firestore is slow, locked, or unconfigured.
         const data = await Promise.race([
           loadFirestoreData(),
           new Promise<AppDatabaseState>((_, reject) => 
-            setTimeout(() => reject(new Error("Firestore connection timed out")), 3000)
+            setTimeout(() => reject(new Error("Firestore connection timed out")), 25000)
           )
         ]);
 
-        const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
+        const hasMockStudents = data.students.some(s => s.id === 'std-1') || data.teachers.some(t => t.id === 'tch-1');
+        if (hasMockStudents) {
+          console.log("Mock data detected in Firestore. Auto-wiping as requested for clean slate...");
+          await clearAllFirestoreData();
+          localStorage.setItem("or_initialized", "true");
+          saveStoredData([], [], [], [], []);
+          setStudents([]);
+          setInstallments([]);
+          setTransactions([]);
+          setLessons([]);
+          setTeachers([]);
+          setAutoWiped(true);
+        } else {
+          const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
 
-        setStudents(data.students);
-        setInstallments(alignedInstallments);
-        setTransactions(data.transactions);
-        setLessons(data.lessons);
-        setTeachers(data.teachers);
+          setStudents(data.students);
+          setInstallments(alignedInstallments);
+          setTransactions(data.transactions);
+          setLessons(data.lessons);
+          setTeachers(data.teachers);
+          
+          // Pre-cache to localStorage as well for instant-responsiveness
+          saveStoredData(data.students, alignedInstallments, data.transactions, data.lessons, data.teachers);
+        }
         setDbMode('firebase');
         setDbError(null);
-
-        // Pre-cache to localStorage as well for instant-responsiveness
-        saveStoredData(data.students, alignedInstallments, data.transactions, data.lessons, data.teachers);
-
-        // --- Start Real-time synchronization listeners for multi-device sync ---
-        console.log("Activating live real-time Firestore synchronization...");
-
-        const unsubStudents = onSnapshot(collection(db, "students"), (snapshot) => {
-          // Check if metadata has pending local writes to avoid double-triggers
-          if (snapshot.metadata.hasPendingWrites) return;
-          const list: Student[] = [];
-          snapshot.forEach(docSnap => {
-            list.push({ id: docSnap.id, ...docSnap.data() } as Student);
-          });
-          if (list.length > 0) {
-            setStudents(list);
-          }
-        }, (err) => {
-          console.warn("Students real-time sync error:", err);
-          setDbError(err.message);
-        });
-
-        const unsubTeachers = onSnapshot(collection(db, "teachers"), (snapshot) => {
-          if (snapshot.metadata.hasPendingWrites) return;
-          const list: Teacher[] = [];
-          snapshot.forEach(docSnap => {
-            list.push({ id: docSnap.id, ...docSnap.data() } as Teacher);
-          });
-          if (list.length > 0) {
-            setTeachers(list);
-          }
-        }, (err) => {
-          console.warn("Teachers real-time sync error:", err);
-          setDbError(err.message);
-        });
-
-        const unsubInstallments = onSnapshot(collection(db, "installments"), (snapshot) => {
-          if (snapshot.metadata.hasPendingWrites) return;
-          const list: Installment[] = [];
-          snapshot.forEach(docSnap => {
-            list.push({ id: docSnap.id, ...docSnap.data() } as Installment);
-          });
-          if (list.length > 0) {
-            const aligned = recalculateInstallmentStatus(list, getTodayDateString());
-            setInstallments(aligned);
-          }
-        }, (err) => {
-          console.warn("Installments real-time sync error:", err);
-          setDbError(err.message);
-        });
-
-        const unsubTransactions = onSnapshot(collection(db, "transactions"), (snapshot) => {
-          if (snapshot.metadata.hasPendingWrites) return;
-          const list: CashTransaction[] = [];
-          snapshot.forEach(docSnap => {
-            list.push({ id: docSnap.id, ...docSnap.data() } as CashTransaction);
-          });
-          if (list.length > 0) {
-            setTransactions(list);
-          }
-        }, (err) => {
-          console.warn("Transactions real-time sync error:", err);
-          setDbError(err.message);
-        });
-
-        const unsubLessons = onSnapshot(collection(db, "lessons"), (snapshot) => {
-          if (snapshot.metadata.hasPendingWrites) return;
-          const list: Lesson[] = [];
-          snapshot.forEach(docSnap => {
-            list.push({ id: docSnap.id, ...docSnap.data() } as Lesson);
-          });
-          if (list.length > 0) {
-            setLessons(list);
-          }
-        }, (err) => {
-          console.warn("Lessons real-time sync error:", err);
-          setDbError(err.message);
-        });
-
-        unsubscribes.push(unsubStudents, unsubTeachers, unsubInstallments, unsubTransactions, unsubLessons);
 
       } catch (err) {
         console.warn("Could not load from Firestore, using offline storage fallback:", err);
         const errVal = err instanceof Error ? err.message : String(err);
-        setDbError(errVal);
+        let friendlyError = errVal;
+        try {
+          if (errVal.startsWith("{")) {
+            const parsed = JSON.parse(errVal);
+            if (parsed && parsed.error) {
+              friendlyError = parsed.error;
+            }
+          }
+        } catch (_) {}
+
+        if (friendlyError.includes("timed out")) {
+          friendlyError = "Bulut sunucusuna bağlantı zaman aşımına uğradı. Lütfen internetinizi kontrol edip yeniden bağlanmayı deneyin.";
+        } else if (friendlyError.includes("Missing or insufficient permissions") || friendlyError.includes("permission-denied")) {
+          friendlyError = "Erişim yetkisi reddedildi. Firestore güvenlik kurallarınızı kontrol edin.";
+        } else if (friendlyError.includes("Unavailable") || friendlyError.includes("network") || friendlyError.includes("offline")) {
+          friendlyError = "Bulut sunucularına ulaşılamıyor (Ağ hatası). Tarayıcınız çevrimdışı çalışmaya devam ediyor.";
+        }
+
+        setDbError(friendlyError);
         setDbMode('local');
         const data = getStoredData();
         const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
@@ -199,12 +198,6 @@ export default function App() {
       }
     }
     initDatabase();
-
-    // Cleanup subscription listeners on unmount
-    return () => {
-      console.log("Cleaning up live Firestore listeners...");
-      unsubscribes.forEach(unsub => unsub());
-    };
   }, [retryCount]);
 
   // Sync to database layer
@@ -521,9 +514,17 @@ export default function App() {
             </button>
           </nav>
 
+          <div className="pt-4 mt-4 border-t border-gray-150 px-1">
+            <button
+              onClick={handleWipeDatabase}
+              disabled={wiping}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-xl text-xs font-bold transition-all border border-rose-200/60 cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" /> Tüm Kayıtları Sıfırla
+            </button>
+          </div>
 
-
-          <div className="pt-8 hidden lg:block text-center text-[10px] text-gray-400 font-medium">
+          <div className="pt-6 hidden lg:block text-center text-[10px] text-gray-400 font-medium">
             <p>Yağmur Yüksel Sanat Akademisi v1.4.0</p>
             <p className="mt-0.5">Yönetici Paneli</p>
           </div>
@@ -532,6 +533,29 @@ export default function App() {
         {/* Dynamic Inner Router Workspace */}
         <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
 
+          {/* Auto-wipe Clean Slate Banner */}
+          {autoWiped && (
+            <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3 shadow-sm animate-fade-in" id="autowipe-success-banner">
+              <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600 shrink-0">
+                <Sparkles className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-indigo-950 font-sans">Kayıtlar Başarıyla Sıfırlandı (Temiz Başlangıç)!</h3>
+                  <button 
+                    onClick={() => setAutoWiped(false)}
+                    className="text-slate-400 hover:text-slate-600 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Kapat
+                  </button>
+                </div>
+                <p className="text-xs text-indigo-900 mt-1">
+                  Öğrenci ve eğitmen kadrosundaki tüm örnek veriler isteğiniz üzerine başarıyla temizlendi. Sisteminiz artık tamamen boş ve kendi öğrenci ve eğitmen kayıtlarınızı girmeye hazır durumda!
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Bulut Bağlantısı ve Veri Eşitleme Paneli */}
           {dbMode === 'local' ? (
             <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-fade-in" id="firebase-connection-banner">
@@ -539,12 +563,26 @@ export default function App() {
                 <div className="p-2 bg-amber-100 rounded-xl text-amber-600 shrink-0 mt-0.5">
                   <AlertCircle className="w-5 h-5" />
                 </div>
-                <div>
+                <div className="space-y-1">
                   <h3 className="text-sm font-bold text-slate-900 font-sans">Yerel Çevrimdışı Çalışma Modu</h3>
-                  <p className="text-xs text-slate-600 mt-1">Uygulamanız şu anda verileri tarayıcınıza kaydediyor. Telefonunuzla ve diğer cihazlarla ortak canlı senkronizasyon için Bulut bağlantısına geçin.</p>
+                  <p className="text-xs text-slate-600">Uygulamanız şu anda verileri tarayıcınıza kaydediyor. Senkronizasyon için Bulut bağlantısına geçin.</p>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Aktif Bulut Altyapısı: <span className="font-bold text-slate-700">{provider === 'aistudio' ? "Yapay Zeka (AI Studio) Hazır Bulutu" : "Özel Firebase Projeniz"}</span>
+                  </p>
                   {dbError && (
-                    <div className="mt-1.5 text-[10px] text-rose-600 font-semibold bg-rose-50/50 px-2 py-1 rounded border border-rose-100/50 inline-block text-left">
+                    <div className="mt-1 text-[10px] text-rose-600 font-semibold bg-rose-50/50 px-2 py-1 rounded border border-rose-100/50 inline-block text-left max-w-full leading-relaxed">
                       Bağlantı hatası: {dbError}
+                    </div>
+                  )}
+                  {provider === 'custom' && (
+                    <div className="pt-1">
+                      <button
+                        onClick={() => handleSwitchProvider('aistudio')}
+                        className="cursor-pointer text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline block"
+                        title="AI Studio tarafından kurulan, sıfır yapılandırma gerektiren ve anında aktif olan varsayılan veri tabanına dönün."
+                      >
+                        Sistem Hazır Bulutuna (AI Studio) Dön ve Sayfayı Yeniden Başlat
+                      </button>
                     </div>
                   )}
                 </div>

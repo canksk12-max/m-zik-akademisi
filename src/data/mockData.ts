@@ -442,19 +442,20 @@ export const INITIAL_TEACHERS: Teacher[] = [
 ];
 
 export function getStoredData() {
+  const isInitialized = localStorage.getItem("or_initialized") === "true";
   const students = localStorage.getItem("or_students");
   const installments = localStorage.getItem("or_installments");
   const transactions = localStorage.getItem("or_transactions");
   const lessons = localStorage.getItem("or_lessons");
   const teachers = localStorage.getItem("or_teachers");
 
-  if (students && installments && transactions) {
+  if (isInitialized || (students && installments && transactions)) {
     try {
-      const parsedStudents = JSON.parse(students) as Student[];
-      const parsedInstallments = JSON.parse(installments) as Installment[];
-      const parsedTransactions = JSON.parse(transactions) as CashTransaction[];
-      const parsedLessons = lessons ? (JSON.parse(lessons) as Lesson[]) : INITIAL_LESSONS;
-      const parsedTeachers = teachers ? (JSON.parse(teachers) as Teacher[]) : INITIAL_TEACHERS;
+      const parsedStudents = students ? (JSON.parse(students) as Student[]) : [];
+      const parsedInstallments = installments ? (JSON.parse(installments) as Installment[]) : [];
+      const parsedTransactions = transactions ? (JSON.parse(transactions) as CashTransaction[]) : [];
+      const parsedLessons = lessons ? (JSON.parse(lessons) as Lesson[]) : [];
+      const parsedTeachers = teachers ? (JSON.parse(teachers) as Teacher[]) : [];
 
       return {
         students: parsedStudents,
@@ -484,6 +485,7 @@ export function saveStoredData(
   lessons?: Lesson[],
   teachers?: Teacher[]
 ) {
+  localStorage.setItem("or_initialized", "true");
   localStorage.setItem("or_students", JSON.stringify(students));
   localStorage.setItem("or_installments", JSON.stringify(installments));
   localStorage.setItem("or_transactions", JSON.stringify(transactions));

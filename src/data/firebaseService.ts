@@ -2,6 +2,7 @@ import {
   collection, 
   getDocs, 
   doc, 
+  getDoc,
   setDoc, 
   deleteDoc, 
   writeBatch 
@@ -80,21 +81,30 @@ export interface AppDatabaseState {
 
 /**
  * Loads all data from Firestore.
- * If Firestore has no student data, it automatically seeds it with initial default data.
+ * Avoids auto-seeding if the database was intentionally emptied, by checking a metadata document.
  */
 export async function loadFirestoreData(): Promise<AppDatabaseState> {
-  let studentsSnap;
+  // First check if the database was already marked as seeded
+  let seededSnap;
+  let isAlreadySeeded = false;
   try {
-    studentsSnap = await getDocs(collection(db, "students"));
+    seededSnap = await getDoc(doc(db, "metadata", "system"));
+    if (seededSnap.exists() && seededSnap.data()?.seeded === true) {
+      isAlreadySeeded = true;
+    }
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, "students");
-    throw error;
+    console.warn("Could not read metadata/system document:", error);
   }
-  
-  // If the database has no student records, we assume it's unseeded. Let's perform initial seeding.
-  if (studentsSnap.empty) {
-    console.log("Firestore empty. Seeding initial data...");
+
+  // If not seeded, write system document and do mock seeding
+  if (!isAlreadySeeded) {
+    console.log("Firestore system target not marked as seeded. Starting initial seeding...");
     await seedFirestoreData();
+    try {
+      await setDoc(doc(db, "metadata", "system"), { seeded: true, seededAt: new Date().toISOString() });
+    } catch (e) {
+      console.warn("Error recording system metadata document:", e);
+    }
     return {
       students: INITIAL_STUDENTS,
       installments: INITIAL_INSTALLMENTS,
@@ -102,6 +112,14 @@ export async function loadFirestoreData(): Promise<AppDatabaseState> {
       lessons: INITIAL_LESSONS,
       teachers: INITIAL_TEACHERS
     };
+  }
+
+  let studentsSnap;
+  try {
+    studentsSnap = await getDocs(collection(db, "students"));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, "students");
+    throw error;
   }
 
   // Retrieve Students
@@ -330,6 +348,56 @@ export async function forceUploadLocalDataToFirestore(state: AppDatabaseState) {
     console.log("Forced migration to Firestore completed successfully!");
   } catch (error) {
     console.error("Migration failed:", error);
+    throw error;
+  }
+}
+
+/**
+ * Wipes out all documents in the core collections and sets metadata/system to { seeded: true }
+ * preventing auto-reseeding on next loads.
+ */
+export async function clearAllFirestoreData(): Promise<void> {
+  try {
+    console.log("Wiping all Firestore collections in a single batch...");
+    const batch = writeBatch(db);
+
+    // Clear students
+    const studentsSnap = await getDocs(collection(db, "students"));
+    studentsSnap.forEach((docSnap) => {
+      batch.delete(doc(db, "students", docSnap.id));
+    });
+
+    // Clear teachers
+    const teachersSnap = await getDocs(collection(db, "teachers"));
+    teachersSnap.forEach((docSnap) => {
+      batch.delete(doc(db, "teachers", docSnap.id));
+    });
+
+    // Clear installments
+    const installmentsSnap = await getDocs(collection(db, "installments"));
+    installmentsSnap.forEach((docSnap) => {
+      batch.delete(doc(db, "installments", docSnap.id));
+    });
+
+    // Clear transactions
+    const transactionsSnap = await getDocs(collection(db, "transactions"));
+    transactionsSnap.forEach((docSnap) => {
+      batch.delete(doc(db, "transactions", docSnap.id));
+    });
+
+    // Clear lessons
+    const lessonsSnap = await getDocs(collection(db, "lessons"));
+    lessonsSnap.forEach((docSnap) => {
+      batch.delete(doc(db, "lessons", docSnap.id));
+    });
+
+    // Mark system as seeded (empty but initialized) so it won't reload mock data
+    batch.set(doc(db, "metadata", "system"), { seeded: true, clearedAt: new Date().toISOString() });
+    
+    await batch.commit();
+    console.log("Firestore wipe completed successfully!");
+  } catch (error) {
+    console.error("Error wiping Firestore:", error);
     throw error;
   }
 }
