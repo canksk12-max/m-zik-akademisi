@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { Student, Lesson } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Student, Lesson, Teacher } from '../types';
 import { 
   Calendar, Check, Clock, Plus, Trash2, Edit3, User, X, 
-  AlertCircle, ChevronLeft, ChevronRight, SlidersHorizontal, BookOpen, GraduationCap
+  AlertCircle, ChevronLeft, ChevronRight, SlidersHorizontal, BookOpen, GraduationCap,
+  MessageSquare, Send, Copy, Smartphone
 } from 'lucide-react';
 
 interface CalendarManagerProps {
   students: Student[];
   lessons: Lesson[];
+  teachers: Teacher[];
   onAddLesson: (lesson: Lesson) => void;
   onUpdateLesson: (lesson: Lesson) => void;
   onDeleteLesson: (lessonId: string) => void;
@@ -36,6 +38,7 @@ const PASTEL_COLORS = [
 export default function CalendarManager({ 
   students, 
   lessons, 
+  teachers,
   onAddLesson, 
   onUpdateLesson, 
   onDeleteLesson 
@@ -43,6 +46,131 @@ export default function CalendarManager({
   
   // View mode toggles
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // WhatsApp Reminder State
+  const [isWhatsappModalOpen, setIsWhatsappModalOpen] = useState(false);
+  const [activeLessonForWhatsapp, setActiveLessonForWhatsapp] = useState<Lesson | null>(null);
+  const [recipientType, setRecipientType] = useState<'student' | 'parent' | 'teacher'>('student');
+  const [customPhone, setCustomPhone] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Clean and format phone for WhatsApp API
+  const formatWhatsAppPhone = (phone: string): string => {
+    if (!phone) return '';
+    let clean = phone.replace(/\D/g, '');
+    
+    if (clean.startsWith('0090')) {
+      clean = clean.substring(2);
+    }
+    
+    if (clean.startsWith('90') && clean.length === 12) {
+      return clean;
+    }
+    
+    if (clean.startsWith('0') && clean.length === 11) {
+      clean = '90' + clean.substring(1);
+    } else if (clean.length === 10) {
+      clean = '90' + clean;
+    }
+    return clean;
+  };
+
+  // Generate Turkish template based on dynamic parameters
+  const generateWhatsappTemplate = (
+    lesson: Lesson, 
+    type: 'student' | 'parent' | 'teacher',
+    st?: Student,
+    te?: Teacher
+  ): string => {
+    const dayLabel = DAYS_OF_WEEK.find(d => d.value === lesson.dayOfWeek)?.label || '';
+    const timeString = `${lesson.startTime} - ${lesson.endTime}`;
+    
+    if (type === 'student') {
+      return `Değerli öğrencimiz *${lesson.studentName}*,\n\n*Yağmur Yüksel Sanat Akademisi* bünyesindeki *${lesson.course}* dersiniz *${dayLabel}* günü saat *${timeString}* arasında planlanmıştır. \n\nDers durumunuzda bir değişiklik olması halinde lütfen önceden tarafımıza bilgi veriniz.\n\nKeyifli dersler dileriz! 🌸🎹🎨`;
+    } else if (type === 'parent') {
+      const parentLabel = st?.parentName ? `*${st.parentName}*` : 'Velimiz';
+      return `Değerli velimiz ${parentLabel} (Öğrencimiz: *${lesson.studentName}*),\n\n*Yağmur Yüksel Sanat Akademisi* bünyesindeki *${lesson.course}* dersimiz *${dayLabel}* günü saat *${timeString}* arasında programlanmıştır. \n\nDerse katılım durumunu teyit etmenizi rica eder, iyi günler dileriz! 🌸🎻🎨`;
+    } else { // teacher
+      const teacherLabel = lesson.teacherName ? `*${lesson.teacherName}*` : 'öğretmenimiz';
+      return `Değerli eğitmenimiz ${teacherLabel},\n\nÖğrenciniz *${lesson.studentName}* ile yapacağınız *${lesson.course}* dersiniz bu hafta *${dayLabel}* günü saat *${timeString}* arasında planlanmıştır. \n\nİyi dersler ve verimli çalışmalar dileriz! 🎶🎨`;
+    }
+  };
+
+  // Open helper modal
+  const handleOpenWhatsappModal = (lesson: Lesson, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActiveLessonForWhatsapp(lesson);
+    
+    const student = students.find(s => s.id === lesson.studentId);
+    const teacher = teachers.find(t => t.name.trim().toLowerCase() === (lesson.teacherName || '').trim().toLowerCase());
+    
+    let initialType: 'student' | 'parent' | 'teacher' = 'student';
+    let initialPhone = '';
+    
+    if (student) {
+      if (student.phone) {
+        initialType = 'student';
+        initialPhone = student.phone;
+      } else if (student.parentPhone) {
+        initialType = 'parent';
+        initialPhone = student.parentPhone;
+      }
+    } else if (teacher && teacher.phone) {
+      initialType = 'teacher';
+      initialPhone = teacher.phone;
+    }
+    
+    setRecipientType(initialType);
+    setCustomPhone(initialPhone);
+    
+    const defaultText = generateWhatsappTemplate(lesson, initialType, student, teacher);
+    setMessageText(defaultText);
+    setIsCopied(false);
+    setIsWhatsappModalOpen(true);
+  };
+
+  // Recipient change selector handler
+  const handleRecipientTypeChange = (type: 'student' | 'parent' | 'teacher') => {
+    setRecipientType(type);
+    if (!activeLessonForWhatsapp) return;
+    
+    const lesson = activeLessonForWhatsapp;
+    const student = students.find(s => s.id === lesson.studentId);
+    const teacher = teachers.find(t => t.name.trim().toLowerCase() === (lesson.teacherName || '').trim().toLowerCase());
+    
+    let phone = '';
+    if (type === 'student' && student) {
+      phone = student.phone || '';
+    } else if (type === 'parent' && student) {
+      phone = student.parentPhone || student.phone || '';
+    } else if (type === 'teacher' && teacher) {
+      phone = teacher.phone || '';
+    }
+    
+    setCustomPhone(phone);
+    const text = generateWhatsappTemplate(lesson, type, student, teacher);
+    setMessageText(text);
+  };
+
+  // Copy text helper
+  const handleCopyText = () => {
+    navigator.clipboard.writeText(messageText);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  // Launch direct window redirect to Whatsapp API
+  const handleLaunchWhatsapp = () => {
+    if (!customPhone) {
+      alert('Lütfen geçerli bir telefon numarası giriniz.');
+      return;
+    }
+    const cleanNumber = formatWhatsAppPhone(customPhone);
+    const encodedText = encodeURIComponent(messageText);
+    const url = `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodedText}`;
+    window.open(url, '_blank');
+  };
   
   // Search & Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,9 +197,11 @@ export default function CalendarManager({
       const firstStud = students[0];
       setFormStudentId(firstStud.id);
       setFormCourse(firstStud.course);
+      setFormTeacherName(firstStud.teacherName || '');
     } else {
       setFormStudentId('');
       setFormCourse('');
+      setFormTeacherName('');
     }
     setFormDayOfWeek(defaultDay || 1);
     setFormStartTime(defaultTime || '14:00');
@@ -84,7 +214,6 @@ export default function CalendarManager({
     } else {
       setFormEndTime('15:00');
     }
-    setFormTeacherName('');
     setFormColor('indigo');
     setIsEditorOpen(true);
   };
@@ -105,12 +234,13 @@ export default function CalendarManager({
     setIsEditorOpen(true);
   };
 
-  // Auto-fill course when student changes
+  // Auto-fill course and teacher when student changes
   const handleFormStudentChange = (id: string) => {
     setFormStudentId(id);
     const selected = students.find(s => s.id === id);
     if (selected) {
       setFormCourse(selected.course);
+      setFormTeacherName(selected.teacherName || '');
     }
   };
 
@@ -370,9 +500,22 @@ export default function CalendarManager({
                                 <Clock className="w-3 h-3 shrink-0 opacity-70" />
                                 {lesson.startTime} - {lesson.endTime}
                               </span>
-                              <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Edit3 className="w-3 h-3 text-gray-400 hover:text-gray-700" />
-                              </span>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => handleOpenWhatsappModal(lesson, e)}
+                                  className="p-1 hover:bg-emerald-250 text-emerald-800 rounded-lg transition-colors cursor-pointer"
+                                  title="WhatsApp Hatırlatması Gönder"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openEditModal(lesson); }}
+                                  className="p-1 hover:bg-slate-200 text-slate-800 rounded-lg transition-colors cursor-pointer"
+                                  title="Dersi Düzenle"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
 
                             <p className="text-xs font-bold truncate tracking-tight">{lesson.studentName}</p>
@@ -385,7 +528,7 @@ export default function CalendarManager({
                               {lesson.teacherName && (
                                 <div className="flex items-center gap-1 text-slate-500 font-medium">
                                   <User className="w-2.5 h-2.5 shrink-0 opacity-70" />
-                                  <span className="truncate">Yazar: {lesson.teacherName}</span>
+                                  <span className="truncate">Eğitmen: {lesson.teacherName}</span>
                                 </div>
                               )}
                             </div>
@@ -454,15 +597,22 @@ export default function CalendarManager({
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              onClick={(e) => handleOpenWhatsappModal(lesson, e)}
+                              className="p-1 hover:bg-emerald-50 text-emerald-600 rounded-lg cursor-pointer transition-colors"
+                              title="WhatsApp Hatırlatması Gönder"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => openEditModal(lesson)}
-                              className="p-1 hover:bg-indigo-50 text-indigo-600 rounded cursor-pointer transition-colors"
+                              className="p-1 hover:bg-indigo-50 text-indigo-600 rounded-lg cursor-pointer transition-colors"
                               title="Dersi Düzenle"
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDelete(lesson.id); }}
-                              className="p-1 hover:bg-rose-50 text-rose-600 rounded cursor-pointer transition-colors"
+                              className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer transition-colors"
                               title="Yönetimi Kaldır"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -593,16 +743,29 @@ export default function CalendarManager({
 
               {/* Teacher name */}
               <div>
-                <label className="block text-gray-500 font-bold mb-1.5">Eğitmen (Öğretmen)</label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-gray-500 font-bold">Eğitmen (Öğretmen)</label>
+                  {formStudentId && students.find(s => s.id === formStudentId)?.teacherName && (
+                    <span className="text-[10px] text-green-700 font-bold bg-green-50 px-1.5 py-0.5 rounded-sm">
+                      ✓ Öğrencinin Eğitmeni
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type="text"
+                    list="lesson-teachers-datalist"
                     value={formTeacherName}
                     onChange={(e) => setFormTeacherName(e.target.value)}
-                    placeholder="Eğitmen adını yazınız..."
+                    placeholder="Eğitmen seçin veya elle yazın..."
                     className="w-full bg-slate-50 border border-gray-200 rounded-xl pl-8 pr-3 py-2.5 font-medium focus:outline-hidden focus:ring-2 focus:ring-indigo-500/10"
                   />
                   <User className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3.5" />
+                  <datalist id="lesson-teachers-datalist">
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.name}>{t.branch}</option>
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -645,15 +808,28 @@ export default function CalendarManager({
 
               {/* Actions Footer */}
               <div className="flex items-center justify-between pt-3 border-t border-gray-150">
-                <div>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {editingLesson && (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(editingLesson.id)}
-                      className="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold py-2 px-3 rounded-xl cursor-pointer transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> İptal Et
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(editingLesson.id)}
+                        className="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold py-2 px-3 rounded-xl cursor-pointer transition-all text-[11px]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> İptal Et
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditorOpen(false);
+                          handleOpenWhatsappModal(editingLesson);
+                        }}
+                        className="flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold py-2 px-3 rounded-xl cursor-pointer transition-all text-[11px]"
+                        title="WhatsApp Hatırlatıcısı Gönder"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" /> WhatsApp Gönder
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -675,6 +851,182 @@ export default function CalendarManager({
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Reminder Modal */}
+      {isWhatsappModalOpen && activeLessonForWhatsapp && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="whatsapp-reminder-modal">
+          <div className="bg-white rounded-2xl border border-gray-150 shadow-xl w-full max-w-lg overflow-hidden animate-scale-up">
+            
+            {/* Modal Header */}
+            <div className="p-5 border-b border-gray-150 bg-slate-50 flex justify-between items-center">
+              <div>
+                <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
+                  <span className="p-1 bg-emerald-100 text-emerald-700 rounded-lg inline-flex">
+                    <MessageSquare className="w-4 h-4" />
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">WhatsApp Ders Hatırlatması</h3>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Öğrenci, veli veya öğretmene ders detaylarını kolayca hatırlatın.
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsWhatsappModalOpen(false)} 
+                className="p-1 hover:bg-gray-200 text-gray-400 rounded-md cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 text-xs">
+              
+              {/* Highlight summary of the class */}
+              <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100 flex justify-between items-center">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider">Hatırlatılacak Ders</span>
+                  <p className="font-bold text-slate-800 text-xs mt-0.5">{activeLessonForWhatsapp.studentName}</p>
+                  <p className="text-[10px] text-gray-500 font-medium">
+                    {DAYS_OF_WEEK.find(d => d.value === activeLessonForWhatsapp.dayOfWeek)?.label} ({activeLessonForWhatsapp.startTime} - {activeLessonForWhatsapp.endTime})
+                  </p>
+                </div>
+                <div className="bg-white px-2.5 py-1 rounded-lg border border-indigo-100/80 text-right text-[10px] font-bold text-indigo-700">
+                  {activeLessonForWhatsapp.course}
+                </div>
+              </div>
+
+              {/* Recipient Tabs */}
+              <div>
+                <label className="block text-gray-500 font-bold mb-1.5">Alıcı Seçimi</label>
+                <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => handleRecipientTypeChange('student')}
+                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
+                      recipientType === 'student' 
+                        ? 'bg-white text-indigo-700 shadow-2xs' 
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span>Öğrenci</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRecipientTypeChange('parent')}
+                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
+                      recipientType === 'parent' 
+                        ? 'bg-white text-indigo-700 shadow-2xs' 
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                    <span>Veli</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRecipientTypeChange('teacher')}
+                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
+                      recipientType === 'teacher' 
+                        ? 'bg-white text-indigo-700 shadow-2xs' 
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                    <span>Öğretmen</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Phone input details */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-gray-500 font-bold">
+                  <span>Alıcı Telefon Numarası</span>
+                  {recipientType === 'parent' && (
+                    <span className="text-[10px] text-indigo-600 font-semibold italic">
+                      {students.find(s => s.id === activeLessonForWhatsapp.studentId)?.parentName 
+                        ? `${students.find(s => s.id === activeLessonForWhatsapp.studentId)?.parentName} Telefonu` 
+                        : 'Veli Girişi'}
+                    </span>
+                  )}
+                  {recipientType === 'teacher' && (
+                    <span className="text-[10px] text-amber-600 font-semibold italic">
+                      Eğitmen: {activeLessonForWhatsapp.teacherName || 'Girilmedi'}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={customPhone}
+                    onChange={(e) => setCustomPhone(e.target.value)}
+                    placeholder="e.g. 555 123 4567"
+                    className="w-full bg-slate-50 border border-gray-200 rounded-xl pl-9 pr-3 py-2.5 font-mono font-bold focus:outline-hidden focus:ring-2 focus:ring-emerald-500/10 text-xs"
+                  />
+                  <Smartphone className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                </div>
+                {!customPhone && (
+                  <p className="text-[10px] text-rose-500 font-semibold">
+                    * Bu alıcı için kayıtlı bir telefon numarası bulunamadı! Lütfen elle bir numara giriniz.
+                  </p>
+                )}
+              </div>
+
+              {/* Message text area */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="block text-gray-500 font-bold">Mesaj Detayı (Düzenleyebilirsiniz)</label>
+                  <button 
+                    onClick={handleCopyText}
+                    className="text-[10px] font-bold text-gray-400 hover:text-slate-700 flex items-center gap-0.5 cursor-pointer"
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-600">Kopyalandı!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Metni Kopyala</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <textarea
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  rows={6}
+                  className="w-full bg-slate-50 border border-gray-200 rounded-xl p-3 font-medium leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-emerald-500/10 text-xs resize-y"
+                  placeholder="Mesajınızı giriniz..."
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-150">
+                <button
+                  type="button"
+                  onClick={() => setIsWhatsappModalOpen(false)}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2.5 px-4 rounded-xl cursor-pointer transition-all"
+                >
+                  Kapat
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLaunchWhatsapp}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-xs cursor-pointer transition-all hover:shadow-md"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>WhatsApp ile Gönder</span>
+                </button>
+              </div>
+
+            </div>
           </div>
         </div>
       )}

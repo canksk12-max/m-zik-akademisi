@@ -805,6 +805,7 @@ export default function App() {
               <CalendarManager 
                 students={students}
                 lessons={lessons}
+                teachers={teachers}
                 onAddLesson={(newLesson) => syncAndSave(students, installments, transactions, [newLesson, ...lessons])}
                 onUpdateLesson={(updatedLesson) => syncAndSave(students, installments, transactions, lessons.map(l => l.id === updatedLesson.id ? updatedLesson : l))}
                 onDeleteLesson={(lessonId) => syncAndSave(students, installments, transactions, lessons.filter(l => l.id !== lessonId))}
