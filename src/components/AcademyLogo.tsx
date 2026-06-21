@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Music } from 'lucide-react';
 
 interface AcademyLogoProps {
   className?: string;
@@ -6,11 +7,19 @@ interface AcademyLogoProps {
 }
 
 export default function AcademyLogo({ size = 'md' }: AcademyLogoProps) {
-  // Image and text dimensions based on size selection
+  const [imageError, setImageError] = useState(false);
+
+  // Image and text dimensions based on size selection with rounded-full for circular elegance
   const imgSize = {
-    sm: 'w-9 h-9 rounded-lg',
-    md: 'w-11 h-11 rounded-xl',
-    lg: 'w-18 h-18 rounded-2xl'
+    sm: 'w-9 h-9 rounded-full',
+    md: 'w-11 h-11 rounded-full',
+    lg: 'w-18 h-18 rounded-full'
+  }[size];
+
+  const iconSize = {
+    sm: 'w-5 h-5',
+    md: 'w-6.5 h-6.5',
+    lg: 'w-10 h-10'
   }[size];
 
   const svgHeight = {
@@ -22,21 +31,28 @@ export default function AcademyLogo({ size = 'md' }: AcademyLogoProps) {
   return (
     <div className="flex items-center gap-3 shrink-0 select-none" id="academy-brand-emblem">
       {/* Luxury gold brand image circular bubble */}
-      <div className={`${imgSize} overflow-hidden border-2 border-amber-400/30 shadow-md shadow-amber-400/10 antialiased shrink-0 bg-slate-950 flex items-center justify-center relative group`}>
-        <div className="absolute inset-0 bg-gradient-to-tr from-amber-400/10 to-transparent opacity-0 group-hover:opacity-15 transition-opacity" />
-        <img 
-          src="/academy_logo.jpg" 
-          alt="Yağmur Yüksel Sanat Akademisi Premium Gold Logo" 
-          className="w-full h-full object-cover scale-102 group-hover:scale-105 transition-transform duration-500" 
-          referrerPolicy="no-referrer"
-        />
+      <div className={`${imgSize} overflow-hidden border-2 border-amber-400/50 shadow-lg shadow-amber-400/20 antialiased shrink-0 bg-slate-950 flex items-center justify-center relative group`}>
+        <div className="absolute inset-0 bg-gradient-to-tr from-amber-400/20 via-transparent to-amber-500/10 opacity-100 group-hover:scale-110 transition-transform duration-500" />
+        {!imageError ? (
+          <img 
+            src="/academy_logo.jpg" 
+            alt="Yağmur Yüksel Sanat Akademisi Premium Gold Logo" 
+            className="w-full h-full object-cover scale-102 group-hover:scale-105 transition-transform duration-500 rounded-full" 
+            referrerPolicy="no-referrer"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full bg-slate-950 text-amber-400 animate-fade-in relative z-10">
+            <Music className={`${iconSize} filter drop-shadow-[0_0_6px_rgba(245,158,11,0.8)] text-amber-400 hover:text-amber-300 transition-colors duration-300`} />
+          </div>
+        )}
       </div>
 
       <div className={`${svgHeight} w-auto`} id="brand-typography-wrapper">
         <svg 
           viewBox="40 30 380 110" 
           fill="none" 
-          xmlns="http://www.w3.org/2050/svg" 
+          xmlns="http://www.w3.org/2000/svg" 
           className="h-full w-auto select-none overflow-visible"
         >
           {/* Text layout faithful to the logo in the picture */}
