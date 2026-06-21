@@ -696,13 +696,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="app-container">
       {/* Upper Navigation Brand Header */}
-      <header className="bg-slate-900 text-white border-b border-slate-950 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sticky top-0 z-40">
-        <div className="flex items-center py-1">
+      <header className="bg-slate-900 text-white border-b border-slate-950 px-4 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sticky top-0 z-40">
+        <div className="flex items-center justify-between w-full sm:w-auto">
           <AcademyLogo size="md" />
         </div>
 
          {/* Action Widgets */}
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-semibold">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto text-xs font-semibold">
           <div className="flex items-center gap-1.5 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
             <Landmark className="w-4 h-4 text-emerald-400" />
             <span className="text-slate-300">Aktif Kasa:</span>
@@ -711,96 +711,104 @@ export default function App() {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-805 bg-slate-800/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
+          <div className="flex items-center gap-1.5 bg-slate-800/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
             <span className={`w-2 h-2 rounded-full ${dbMode === 'firebase' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
             <span className="text-[11px] text-slate-300 font-medium">
-              {dbMode === 'firebase' ? 'Bulut Bağlantısı Aktif' : 'Yerel Mod (Offline)'}
+              {dbMode === 'firebase' ? 'Bulut Aktif' : 'Yerel (Offline)'}
             </span>
           </div>
 
-          <div className="text-slate-400 font-medium flex items-center gap-1.5">
-            <span className="text-slate-300">Çalışma Tarihi: {formatTurkishDate(getTodayDateString())}</span>
+          <div className="hidden md:flex text-slate-400 font-medium items-center gap-1.5">
+            <span className="text-slate-300">Tarih: {formatTurkishDate(getTodayDateString())}</span>
           </div>
         </div>
       </header>
 
       {/* Main Framework Layout Grid */}
       <div className="flex-1 flex flex-col lg:flex-row">
-        {/* Left Side Navigation Sidebar */}
-        <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-150 p-4 shrink-0 space-y-2">
-          <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase px-3 py-2">Ana Modüller</p>
+        {/* Left Side Navigation Sidebar - Adaptive Horizontal on Mobile, Vertical on Desktop */}
+        <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-150 p-3 sm:p-4 shrink-0" id="aside-navigation-sidebar">
+          <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase px-3 py-2 hidden lg:block">Ana Modüller</p>
           
-          <nav className="space-y-1">
+          <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-1.5 lg:space-y-1 scrollbar-none">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl text-left text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'dashboard'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-3xs'
+                  ? 'bg-indigo-50 text-indigo-700 font-black shadow-3xs'
                   : 'text-gray-650 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" /> Özet Paneli (Kasa)
+              <LayoutDashboard className="w-4 h-4 shrink-0" />
+              <span>Özet Paneli</span>
             </button>
 
             <button
               onClick={() => setActiveTab('students')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl text-left text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'students'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-3xs'
+                  ? 'bg-indigo-50 text-indigo-700 font-black shadow-3xs'
                   : 'text-gray-650 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <GraduationCap className="w-4 h-4" /> Öğrenci Kayıt & Taksit
+              <GraduationCap className="w-4 h-4 shrink-0" />
+              <span>Öğrenci Kayıt</span>
             </button>
 
             <button
               onClick={() => setActiveTab('installments')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl text-left text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'installments'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-3xs'
+                  ? 'bg-indigo-50 text-indigo-700 font-black shadow-3xs'
                   : 'text-gray-650 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <CheckSquare className="w-4 h-4" /> Cari Taksit & Ödeme Takibi
+              <CheckSquare className="w-4 h-4 shrink-0" />
+              <span>Taksit Takip</span>
             </button>
 
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl text-left text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'calendar'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-3xs'
+                  ? 'bg-indigo-50 text-indigo-700 font-black shadow-3xs'
                   : 'text-gray-655 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <Calendar className="w-4 h-4 text-indigo-600" /> Haftalık Ders Takvimi
+              <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>Ders Takvimi</span>
             </button>
 
             <button
               onClick={() => setActiveTab('teachers')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 sm:py-2.5 rounded-xl text-left text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'teachers'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-3xs'
+                  ? 'bg-indigo-50 text-indigo-700 font-black shadow-3xs'
                   : 'text-gray-655 hover:bg-gray-50 hover:text-gray-900'
               }`}
               id="sidebar-nav-teachers"
             >
-              <Users className="w-4 h-4 text-amber-500" /> Eğitmen Kadrosu
+              <Users className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>Eğitmenler</span>
             </button>
           </nav>
 
-          <div className="pt-4 mt-4 border-t border-gray-150 px-1 space-y-2">
+          <div className="pt-3 mt-2 lg:mt-4 border-t border-gray-150 flex lg:flex-col gap-2 items-center lg:items-stretch justify-between lg:justify-start">
             <button
               onClick={handleWipeDatabase}
               disabled={wiping}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-xl text-xs font-bold transition-all border border-rose-200/60 cursor-pointer disabled:opacity-50"
+              className="lg:w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-xl text-[11px] font-bold transition-all border border-rose-200/60 cursor-pointer disabled:opacity-50 whitespace-nowrap"
             >
-              <Trash2 className="w-4 h-4" /> Tüm Kayıtları Sıfırla
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline lg:inline">Tüm Kayıtları Sıfırla</span>
+              <span className="inline sm:hidden lg:hidden">Sıfırla</span>
             </button>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-100 hover:bg-slate-250 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+              className="lg:w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all border border-slate-200 cursor-pointer whitespace-nowrap"
             >
-              <LogOut className="w-4 h-4 text-slate-500" /> Güvenli Çıkış Yap
+              <LogOut className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <span>Güvenli Çıkış</span>
             </button>
           </div>
 
@@ -811,7 +819,7 @@ export default function App() {
         </aside>
 
         {/* Dynamic Inner Router Workspace */}
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto max-w-7xl mx-auto w-full">
 
           {/* PWA Install Banner */}
           {showInstallBanner && (
