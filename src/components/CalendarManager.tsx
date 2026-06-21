@@ -10,9 +10,10 @@ interface CalendarManagerProps {
   students: Student[];
   lessons: Lesson[];
   teachers: Teacher[];
-  onAddLesson: (lesson: Lesson) => void;
-  onUpdateLesson: (lesson: Lesson) => void;
-  onDeleteLesson: (lessonId: string) => void;
+  onAddLesson?: (lesson: Lesson) => void;
+  onUpdateLesson?: (lesson: Lesson) => void;
+  onDeleteLesson?: (lessonId: string) => void;
+  isReadOnly?: boolean;
 }
 
 const DAYS_OF_WEEK = [
@@ -41,7 +42,8 @@ export default function CalendarManager({
   teachers,
   onAddLesson, 
   onUpdateLesson, 
-  onDeleteLesson 
+  onDeleteLesson,
+  isReadOnly = false
 }: CalendarManagerProps) {
   
   // View mode toggles
@@ -285,6 +287,7 @@ export default function CalendarManager({
   // Handle Form Submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (!formStudentId) return;
 
     const student = students.find(s => s.id === formStudentId);
@@ -308,9 +311,9 @@ export default function CalendarManager({
     };
 
     if (editingLesson) {
-      onUpdateLesson(payload);
+      if (onUpdateLesson) onUpdateLesson(payload);
     } else {
-      onAddLesson(payload);
+      if (onAddLesson) onAddLesson(payload);
     }
 
     setIsEditorOpen(false);
@@ -318,7 +321,8 @@ export default function CalendarManager({
 
   // Handle deletion
   const handleDelete = (id: string) => {
-    onDeleteLesson(id);
+    if (isReadOnly) return;
+    if (onDeleteLesson) onDeleteLesson(id);
     setIsEditorOpen(false);
   };
 
@@ -441,12 +445,14 @@ export default function CalendarManager({
             </button>
           </div>
 
-          <button
-            onClick={() => openAddModal()}
-            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-xs cursor-pointer transition-all"
-          >
-            <Plus className="w-4 h-4" /> Yeni Ders Planla
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={() => openAddModal()}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-xs cursor-pointer transition-all"
+            >
+              <Plus className="w-4 h-4" /> Yeni Ders Planla
+            </button>
+          )}
         </div>
       </div>
 
@@ -458,7 +464,9 @@ export default function CalendarManager({
               <Calendar className="w-4 h-4 text-indigo-600" />
               <h3 className="text-xs font-bold text-slate-800 tracking-tight">YAĞMUR YÜKSEL SANAT AKADEMİSİ HAFTALIK DERS PROGRAMI</h3>
             </div>
-            <div className="text-[11px] text-gray-400 font-medium">Ders kartlarına tıklayarak zaman güncelleyebilir veya iptal edebilirsiniz.</div>
+            <div className="text-[11px] text-gray-400 font-medium">
+              {isReadOnly ? "Ders detaylarına dokunarak WhatsApp hatırlatması gönderebilirsiniz." : "Ders kartlarına tıklayarak zaman güncelleyebilir veya iptal edebilirsiniz."}
+            </div>
           </div>
 
           {/* Weekly Board Columns */}
@@ -479,12 +487,14 @@ export default function CalendarManager({
                     {dayLessons.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center p-4 border border-dashed border-gray-200/60 rounded-xl min-h-[120px]">
                         <span className="text-[10px] text-gray-400 text-center font-medium">Planlı ders yok</span>
-                        <button 
-                          onClick={() => openAddModal(day.value)} 
-                          className="mt-2 text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5"
-                        >
-                          <Plus className="w-3 h-3" /> Ders Yaz
-                        </button>
+                        {!isReadOnly && (
+                          <button 
+                            onClick={() => openAddModal(day.value)} 
+                            className="mt-2 text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5"
+                          >
+                            <Plus className="w-3 h-3" /> Ders Yaz
+                          </button>
+                        )}
                       </div>
                     ) : (
                       dayLessons.map(lesson => {
@@ -492,8 +502,16 @@ export default function CalendarManager({
                         return (
                           <div
                             key={lesson.id}
-                            onClick={() => openEditModal(lesson)}
-                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${stylePreset.bg} ${stylePreset.border} ${stylePreset.text} group relative`}
+                            onClick={() => {
+                              if (!isReadOnly) {
+                                openEditModal(lesson);
+                              } else {
+                                handleOpenWhatsappModal(lesson);
+                              }
+                            }}
+                            className={`p-3 rounded-xl border text-left transition-all ${
+                              !isReadOnly ? 'cursor-pointer' : 'cursor-pointer hover:scale-[1.01]'
+                            } ${stylePreset.bg} ${stylePreset.border} ${stylePreset.text} group relative`}
                           >
                             <div className="flex items-center justify-between gap-1 mb-1">
                               <span className="text-[10px] font-bold flex items-center gap-1">
@@ -508,13 +526,15 @@ export default function CalendarManager({
                                 >
                                   <MessageSquare className="w-3.5 h-3.5" />
                                 </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); openEditModal(lesson); }}
-                                  className="p-1 hover:bg-slate-200 text-slate-800 rounded-lg transition-colors cursor-pointer"
-                                  title="Dersi Düzenle"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
+                                {!isReadOnly && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); openEditModal(lesson); }}
+                                    className="p-1 hover:bg-slate-200 text-slate-800 rounded-lg transition-colors cursor-pointer"
+                                    title="Dersi Düzenle"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </div>
 
@@ -603,20 +623,24 @@ export default function CalendarManager({
                             >
                               <MessageSquare className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => openEditModal(lesson)}
-                              className="p-1 hover:bg-indigo-50 text-indigo-600 rounded-lg cursor-pointer transition-colors"
-                              title="Dersi Düzenle"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDelete(lesson.id); }}
-                              className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer transition-colors"
-                              title="Yönetimi Kaldır"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {!isReadOnly && (
+                              <>
+                                <button
+                                  onClick={() => openEditModal(lesson)}
+                                  className="p-1 hover:bg-indigo-50 text-indigo-600 rounded-lg cursor-pointer transition-colors"
+                                  title="Dersi Düzenle"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(lesson.id); }}
+                                  className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer transition-colors"
+                                  title="Yönetimi Kaldır"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

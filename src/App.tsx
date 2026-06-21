@@ -20,6 +20,7 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState<boolean>(true);
+  const [unauthTab, setUnauthTab] = useState<'schedule' | 'login'>('schedule');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -506,86 +507,187 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden font-sans" id="admin-login-screen">
-        {/* Soft elegant glowing layout background */}
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 animate-scale-up space-y-6">
-          <div className="flex flex-col items-center text-center space-y-4">
-            <AcademyLogo size="lg" />
-            <div className="space-y-1">
-              <span className="text-[10px] text-amber-500 font-bold tracking-widest uppercase">YÖNETİM SİSTEMİ</span>
-              <h2 className="text-lg font-bold text-white tracking-tight">Yetkili Girişi</h2>
-              <p className="text-[11px] text-slate-400">Yönetim paneline erişmek için giriş yapınız.</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="unauthenticated-root">
+        {/* Upper Navigation Header for Public View */}
+        <header className="bg-slate-900 text-white border-b border-slate-950 px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sticky top-0 z-40">
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <AcademyLogo size="md" />
+            
+            {/* Small Mobile Tab Switcher Toggle */}
+            <div className="sm:hidden flex items-center bg-slate-800 p-0.5 rounded-xl border border-slate-700">
+              <button
+                onClick={() => setUnauthTab('schedule')}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  unauthTab === 'schedule'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                Takvim
+              </button>
+              <button
+                onClick={() => setUnauthTab('login')}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  unauthTab === 'login'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                Giriş
+              </button>
             </div>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            {loginError && (
-              <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl text-[11px] font-bold flex items-start gap-2 animate-shake">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{loginError}</span>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kullanıcı Adı</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={usernameInput}
-                  onChange={(e) => setUsernameInput(e.target.value)}
-                  placeholder="Kullanıcı adını yazın..."
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/60 placeholder-slate-650 transition-all font-sans"
-                  autoFocus
-                />
-                <Users className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Şifre</label>
-              <div className="relative">
-                <input
-                  type="password"
-                  required
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="••••"
-                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs font-semibold tracking-widest focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/60 placeholder-slate-655 transition-all font-sans"
-                />
-                <Key className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer w-3.5 h-3.5"
-                />
-                <span>Oturumu açık tut</span>
-              </label>
-            </div>
-
+          {/* Desktop Tab Selector */}
+          <div className="hidden sm:flex items-center bg-slate-800 p-0.5 rounded-xl border border-slate-700">
             <button
-              type="submit"
-              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-lg hover:shadow-indigo-500/10 cursor-pointer transition-all flex items-center justify-center gap-2 mt-2 font-sans"
+              onClick={() => setUnauthTab('schedule')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                unauthTab === 'schedule'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white'
+              }`}
             >
-              <Lock className="w-3.5 h-3.5" />
-              Sistem Girişi Yap
+              <Calendar className="w-4 h-4 text-indigo-350" />
+              Haftalık Ders Programı
             </button>
-          </form>
-
-          <div className="text-center pt-2">
-            <span className="text-[10px] text-slate-500 font-medium tracking-wide">
-              Yağmur Yüksel Sanat Akademisi
-            </span>
+            <button
+              onClick={() => setUnauthTab('login')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                unauthTab === 'login'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Lock className="w-4 h-4 text-indigo-350" />
+              Yönetici Paneli Girişi
+            </button>
           </div>
+
+          <div className="text-slate-400 font-medium text-xs flex items-center justify-between sm:justify-end gap-3 shrink-0">
+            <span className="hidden sm:inline">Tarih: {formatTurkishDate(getTodayDateString())}</span>
+            <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 text-indigo-300 font-bold uppercase tracking-wider">Halk Gözlem Modu</span>
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <div className="flex-grow flex flex-col">
+          {unauthTab === 'schedule' ? (
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+              {/* Alert announcement */}
+              <div className="bg-gradient-to-r from-indigo-500/10 via-indigo-600/5 to-transparent rounded-2xl border border-indigo-150 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-3xs">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                    Canlı Ders Programı Gözlemcisi
+                  </h4>
+                  <p className="text-xs text-gray-400 md:max-w-2xl font-medium leading-relaxed">
+                    Öğrenci, veli ve öğretmenlerimiz haftalık güncel ders takvimini buradan canlı olarak takip edebilir, branş veya isim araması yapıp ders kartlarına dokunarak WhatsApp hatırlatıcılarını otomatik oluşturabilir.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setUnauthTab('login')}
+                  className="bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 hover:border-indigo-300 font-bold text-xs py-2 px-4 rounded-xl cursor-pointer transition-all shrink-0 flex items-center gap-1"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  Yönetici Girişi Yap
+                </button>
+              </div>
+
+              {/* Read Only Calendar View */}
+              <div className="bg-white rounded-3xl p-1 sm:p-4 border border-gray-150 shadow-3xs">
+                <CalendarManager 
+                  students={students}
+                  lessons={lessons}
+                  teachers={teachers}
+                  isReadOnly={true}
+                />
+              </div>
+            </main>
+          ) : (
+            <div className="flex-1 bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden" id="admin-login-screen">
+              {/* Soft elegant glowing layout background */}
+              <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+              <div className="w-full max-w-md bg-slate-900/85 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 animate-scale-up space-y-6">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <AcademyLogo size="lg" />
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-amber-500 font-bold tracking-widest uppercase">YÖNETİM SİSTEMİ</span>
+                    <h2 className="text-lg font-bold text-white tracking-tight">Yetkili Girişi</h2>
+                    <p className="text-[11px] text-slate-400">Yönetim paneline erişmek için giriş yapınız.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleLogin} className="space-y-4">
+                  {loginError && (
+                    <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl text-[11px] font-bold flex items-start gap-2 animate-shake">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{loginError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kullanıcı Adı</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={usernameInput}
+                        onChange={(e) => setUsernameInput(e.target.value)}
+                        placeholder="Kullanıcı adını yazın..."
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/60 placeholder-slate-650 transition-all font-sans"
+                        autoFocus
+                      />
+                      <Users className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Şifre</label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        required
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        placeholder="••••"
+                        className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-10 pr-4 py-3 text-xs font-semibold tracking-widest focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/60 placeholder-slate-655 transition-all font-sans"
+                      />
+                      <Key className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-semibold text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer w-3.5 h-3.5"
+                      />
+                      <span>Oturumu açık tut</span>
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-lg hover:shadow-indigo-500/10 cursor-pointer transition-all flex items-center justify-center gap-2 mt-2 font-sans"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    Sistem Girişi Yap
+                  </button>
+                </form>
+
+                <div className="text-center pt-2">
+                  <span className="text-[10px] text-slate-500 font-medium tracking-wide">
+                    Yağmur Yüksel Sanat Akademisi
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
