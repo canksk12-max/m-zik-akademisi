@@ -9,7 +9,7 @@ import InstallmentsManager from './components/InstallmentsManager';
 import CalendarManager from './components/CalendarManager';
 import TeacherManager from './components/TeacherManager';
 import AcademyLogo from './components/AcademyLogo';
-import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Trash2, Smartphone, Download, X, Share2, Lock, LogOut, Key } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Smartphone, Download, X, Share2, Lock, LogOut, Key } from 'lucide-react';
 
 export default function App() {
   // Database State
