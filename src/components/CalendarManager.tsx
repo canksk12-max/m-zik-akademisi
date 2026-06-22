@@ -58,7 +58,7 @@ export default function CalendarManager({
   // WhatsApp Reminder State
   const [isWhatsappModalOpen, setIsWhatsappModalOpen] = useState(false);
   const [activeLessonForWhatsapp, setActiveLessonForWhatsapp] = useState<Lesson | null>(null);
-  const [recipientType, setRecipientType] = useState<'student' | 'parent' | 'teacher'>('student');
+  const [recipientType, setRecipientType] = useState<'student' | 'parent' | 'teacher' | 'teacher_2h'>('student');
   const [customPhone, setCustomPhone] = useState('');
   const [messageText, setMessageText] = useState('');
   const [isCopied, setIsCopied] = useState(false);
@@ -87,7 +87,7 @@ export default function CalendarManager({
   // Generate Turkish template based on dynamic parameters
   const generateWhatsappTemplate = (
     lesson: Lesson, 
-    type: 'student' | 'parent' | 'teacher',
+    type: 'student' | 'parent' | 'teacher' | 'teacher_2h',
     st?: Student,
     te?: Teacher
   ): string => {
@@ -99,9 +99,12 @@ export default function CalendarManager({
     } else if (type === 'parent') {
       const parentLabel = st?.parentName ? `*${st.parentName}*` : 'Velimiz';
       return `Değerli velimiz ${parentLabel} (Öğrencimiz: *${lesson.studentName}*),\n\n*Yağmur Yüksel Sanat Akademisi* bünyesindeki *${lesson.course}* dersimiz *${dayLabel}* günü saat *${timeString}* arasında programlanmıştır. \n\nDerse katılım durumunu teyit etmenizi rica eder, iyi günler dileriz! 🌸🎻🎨`;
-    } else { // teacher
+    } else if (type === 'teacher') {
       const teacherLabel = lesson.teacherName ? `*${lesson.teacherName}*` : 'öğretmenimiz';
       return `Değerli eğitmenimiz ${teacherLabel},\n\nÖğrenciniz *${lesson.studentName}* ile yapacağınız *${lesson.course}* dersiniz bu hafta *${dayLabel}* günü saat *${timeString}* arasında planlanmıştır. \n\nİyi dersler ve verimli çalışmalar dileriz! 🎶🎨`;
+    } else { // teacher_2h
+      const teacherLabel = lesson.teacherName ? `*${lesson.teacherName}*` : 'öğretmenimiz';
+      return `Değerli eğitmenimiz ${teacherLabel},\n\nBugünkü öğrenciniz *${lesson.studentName}* ile olan *${lesson.course}* dersinize son *2 SAAT* kalmıştır. ⏰\n\nDers saati: *${lesson.startTime} - ${lesson.endTime}*\n\nİyi dersler dileriz! 🎶🌸`;
     }
   };
 
@@ -113,7 +116,7 @@ export default function CalendarManager({
     const student = students.find(s => s.id === lesson.studentId);
     const teacher = teachers.find(t => t.name.trim().toLowerCase() === (lesson.teacherName || '').trim().toLowerCase());
     
-    let initialType: 'student' | 'parent' | 'teacher' = 'student';
+    let initialType: 'student' | 'parent' | 'teacher' | 'teacher_2h' = 'student';
     let initialPhone = '';
     
     if (student) {
@@ -139,7 +142,7 @@ export default function CalendarManager({
   };
 
   // Recipient change selector handler
-  const handleRecipientTypeChange = (type: 'student' | 'parent' | 'teacher') => {
+  const handleRecipientTypeChange = (type: 'student' | 'parent' | 'teacher' | 'teacher_2h') => {
     setRecipientType(type);
     if (!activeLessonForWhatsapp) return;
     
@@ -153,6 +156,8 @@ export default function CalendarManager({
     } else if (type === 'parent' && student) {
       phone = student.parentPhone || student.phone || '';
     } else if (type === 'teacher' && teacher) {
+      phone = teacher.phone || '';
+    } else if (type === 'teacher_2h' && teacher) {
       phone = teacher.phone || '';
     }
     
@@ -1036,11 +1041,11 @@ export default function CalendarManager({
               {/* Recipient Tabs */}
               <div>
                 <label className="block text-gray-500 font-bold mb-1.5">Alıcı Seçimi</label>
-                <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl">
                   <button
                     type="button"
                     onClick={() => handleRecipientTypeChange('student')}
-                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
                       recipientType === 'student' 
                         ? 'bg-white text-indigo-700 shadow-2xs' 
                         : 'text-gray-500 hover:text-gray-800'
@@ -1053,7 +1058,7 @@ export default function CalendarManager({
                   <button
                     type="button"
                     onClick={() => handleRecipientTypeChange('parent')}
-                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
                       recipientType === 'parent' 
                         ? 'bg-white text-indigo-700 shadow-2xs' 
                         : 'text-gray-500 hover:text-gray-800'
@@ -1066,7 +1071,7 @@ export default function CalendarManager({
                   <button
                     type="button"
                     onClick={() => handleRecipientTypeChange('teacher')}
-                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
                       recipientType === 'teacher' 
                         ? 'bg-white text-indigo-700 shadow-2xs' 
                         : 'text-gray-500 hover:text-gray-800'
@@ -1074,6 +1079,19 @@ export default function CalendarManager({
                   >
                     <GraduationCap className="w-3.5 h-3.5 shrink-0" />
                     <span>Öğretmen</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRecipientTypeChange('teacher_2h')}
+                    className={`py-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 ${
+                      recipientType === 'teacher_2h' 
+                        ? 'bg-amber-500 text-white shadow-2xs font-extrabold' 
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                    <span>Öğretmen (2s Kala)</span>
                   </button>
                 </div>
               </div>
@@ -1089,7 +1107,7 @@ export default function CalendarManager({
                         : 'Veli Girişi'}
                     </span>
                   )}
-                  {recipientType === 'teacher' && (
+                  {(recipientType === 'teacher' || recipientType === 'teacher_2h') && (
                     <span className="text-[10px] text-amber-600 font-semibold italic">
                       Eğitmen: {activeLessonForWhatsapp.teacherName || 'Girilmedi'}
                     </span>

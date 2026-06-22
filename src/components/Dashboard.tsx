@@ -149,95 +149,81 @@ export default function Dashboard({
 
       {/* Gelir / Gider Kar-Zarar Analiz Özet Paneli */}
       <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-3xs" id="revenue-expenses-analysis-card">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-150 pb-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-4 border-b border-gray-100">
           <div>
-            <span className="text-[10px] font-bold tracking-widest text-rose-600 uppercase">ANALİZ & RAPORLAMA</span>
-            <h3 className="text-base font-bold text-gray-900 mt-0.5">Gelir & Gider (Kâr / Zarar) Karşılaştırması</h3>
-            <p className="text-xs text-gray-500">Kasadaki fiili Nakit Girişleri ile Kurum Giderlerinin anlık karşılaştırması ve net verimlilik durumu.</p>
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight">Gelir & Gider Analiz Paneli</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Fiili nakit hareketleri ve net bütçe verimlilik durumu</p>
           </div>
-          <div className="flex items-center gap-1.5 self-start md:self-auto">
-            <span className="text-xs text-gray-500 font-medium">Bütçe Sağlık Durumu:</span>
+          <div>
             {netEarnings > 0 ? (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Kâr Durumundasınız (%{Math.round((netEarnings / (totalIncomes || 1)) * 100)})
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-full border border-emerald-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Kâr Akışı (%{Math.round((netEarnings / (totalIncomes || 1)) * 100)})
               </span>
             ) : netEarnings < 0 ? (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-full border border-rose-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" /> Zarar Durumundasınız
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 text-[11px] font-bold rounded-full border border-rose-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" /> Gider Fazlası Var
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-zinc-50 text-zinc-700 text-xs font-bold rounded-full border border-zinc-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" /> Bütçe Dengede (Başabaş)
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-zinc-50 text-zinc-600 text-[11px] font-bold rounded-full border border-zinc-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" /> Bütçe Dengede
               </span>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="pnl-summary-grid">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3" id="pnl-summary-grid">
           {/* Toplam Giriş (Gelir) */}
-          <div className="bg-emerald-50/30 border border-emerald-100/80 rounded-xl p-4 flex flex-col justify-between">
-            <div>
-              <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase">TOPLAM ALINAN / ÖDENEN GELİR</span>
-              <div className="text-xl font-extrabold text-emerald-700 mt-1">{totalIncomes.toLocaleString('tr-TR')} ₺</div>
-            </div>
-            <div className="text-gray-500 text-[11px] mt-2">
-              Öğrenci peşinatları ve tahsil edilmiş tüm dönem taksitleri.
-            </div>
+          <div className="border-l-4 border-emerald-500 bg-slate-50/50 p-4 rounded-r-xl transition-all hover:bg-slate-50">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">TOPLAM TAHSİLAT (GELİR)</span>
+            <div className="text-xl font-extrabold text-slate-900 mt-1">{totalIncomes.toLocaleString('tr-TR')} ₺</div>
+            <p className="text-[10px] text-gray-400 mt-1">Öğrenci peşinatları ve ödenen taksitler</p>
           </div>
 
           {/* Toplam Çıkış (Gider) */}
-          <div className="bg-rose-50/30 border border-rose-100/80 rounded-xl p-4 flex flex-col justify-between">
-            <div>
-              <span className="text-[10px] font-bold text-rose-600 tracking-wider uppercase">TOPLAM GERÇEKLEŞEN GİDER</span>
-              <div className="text-xl font-extrabold text-rose-700 mt-1">{totalExpenses.toLocaleString('tr-TR')} ₺</div>
-            </div>
-            <div className="text-gray-500 text-[11px] mt-2">
-              Kira, faturalar, eğitmen ödemeleri ve kurum harcamaları.
-            </div>
+          <div className="border-l-4 border-rose-500 bg-slate-50/50 p-4 rounded-r-xl transition-all hover:bg-slate-50">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">TOPLAM GİDERLER</span>
+            <div className="text-xl font-extrabold text-slate-900 mt-1">{totalExpenses.toLocaleString('tr-TR')} ₺</div>
+            <p className="text-[10px] text-gray-400 mt-1">Kira, faturalar ve tüm operasyonel harcamalar</p>
           </div>
 
           {/* Net Kâr / Zarar */}
-          <div className={`border rounded-xl p-4 flex flex-col justify-between ${
+          <div className={`border-l-4 p-4 rounded-r-xl transition-all hover:bg-slate-50 ${
             netEarnings > 0 
-              ? 'bg-teal-50/40 border-teal-200' 
+              ? 'border-emerald-500 bg-emerald-50/10' 
               : netEarnings < 0 
-                ? 'bg-rose-50/50 border-rose-200' 
-                : 'bg-zinc-50 border-zinc-200'
+                ? 'border-rose-500 bg-rose-50/10' 
+                : 'border-slate-300 bg-slate-50/50'
           }`}>
-            <div>
-              <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500">NET KÂR / ZARAR DURUMU</span>
-              <div className={`text-xl font-extrabold mt-1 font-sans ${
-                netEarnings > 0 
-                  ? 'text-emerald-600' 
-                  : netEarnings < 0 
-                    ? 'text-rose-600' 
-                    : 'text-zinc-650'
-              }`}>
-                {netEarnings > 0 ? '+' : ''}{netEarnings.toLocaleString('tr-TR')} ₺
-              </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NET AKIŞ DURUMU</span>
+            <div className={`text-xl font-extrabold mt-1 ${
+              netEarnings > 0 
+                ? 'text-emerald-600' 
+                : netEarnings < 0 
+                  ? 'text-rose-600' 
+                  : 'text-slate-600'
+            }`}>
+              {netEarnings > 0 ? '+' : ''}{netEarnings.toLocaleString('tr-TR')} ₺
             </div>
-            <div className="text-[11px] mt-2 font-medium">
-              {netEarnings > 0 ? (
-                <span className="text-emerald-700">Gelirleriniz giderlerinizden fazla, kurum kârdadır.</span>
-              ) : netEarnings < 0 ? (
-                <span className="text-rose-700">Giderleriniz gelirlerinizden fazladır. Harcamaları denetleyin.</span>
-              ) : (
-                <span className="text-gray-500">Gelir ve gider başabaş seviyesinde, net denge sıfırdır.</span>
-              )}
-            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {netEarnings > 0 ? 'Dönem kârla ilerliyor' : netEarnings < 0 ? 'Gider yönetimi gerekiyor' : 'Başabaş noktası'}
+            </p>
           </div>
         </div>
 
         {/* Dağılım Oranı Barları */}
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <div className="flex justify-between items-center text-xs font-semibold text-gray-500 mb-1.5">
-            <span>Dağılım Oranı (Gelir vs Gider)</span>
-            <div className="flex gap-4">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Gelir %{Math.round((totalIncomes / ((totalIncomes + totalExpenses) || 1)) * 100)}</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" /> Gider %{Math.round((totalExpenses / ((totalIncomes + totalExpenses) || 1)) * 100)}</span>
+        <div className="mt-4 pt-3 border-t border-slate-100">
+          <div className="flex justify-between items-center text-[11px] font-medium text-slate-500 mb-1.5">
+            <span>Gelir / Gider Dağılım Oranı</span>
+            <div className="flex gap-3">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Gelir %{Math.round((totalIncomes / ((totalIncomes + totalExpenses) || 1)) * 100)}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> Gider %{Math.round((totalExpenses / ((totalIncomes + totalExpenses) || 1)) * 100)}
+              </span>
             </div>
           </div>
-          <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden flex">
+          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden flex">
             <div 
               className="bg-emerald-500 h-full transition-all duration-500" 
               style={{ width: `${(totalIncomes / ((totalIncomes + totalExpenses) || 1)) * 100}%` }}
@@ -253,12 +239,15 @@ export default function Dashboard({
       {/* Progress Section */}
       <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-3xs" id="financial-progress-bar">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-bold text-gray-800">Genel Tahsilat İlerleme Durumu</span>
-          <span className="text-xs font-mono font-bold text-emerald-600">
+          <div>
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider block">Genel Tahsilat İlerleme Durumu</h4>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Toplam sözleşme bedeli içerisindeki tahsilat performansı</span>
+          </div>
+          <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
             {totalCollected.toLocaleString('tr-TR')} ₺ / {totalExpectedIncome.toLocaleString('tr-TR')} ₺ (%{Math.round((totalCollected / (totalExpectedIncome || 1)) * 100)})
           </span>
         </div>
-        <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden flex">
+        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex mt-3">
           <div 
             className="bg-emerald-500 h-full transition-all duration-500" 
             style={{ width: `${(totalCollected / (totalExpectedIncome || 1)) * 100}%` }}
@@ -268,12 +257,12 @@ export default function Dashboard({
             style={{ width: `${(remainingBalance / (totalExpectedIncome || 1)) * 100}%` }}
           />
         </div>
-        <div className="flex gap-4 mt-3 text-xs text-gray-500">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Tahsil Edilen (%{Math.round((totalCollected / (totalExpectedIncome || 1)) * 100)})
+        <div className="flex gap-4 mt-2.5 text-[10px] font-medium text-slate-500">
+          <div className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Tahsil Edilen (%{Math.round((totalCollected / (totalExpectedIncome || 1)) * 100)})
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Bekleyen Planlı Alacak (%{Math.round((remainingBalance / (totalExpectedIncome || 1)) * 100)})
+          <div className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Bekleyen Planlı Alacak (%{Math.round((remainingBalance / (totalExpectedIncome || 1)) * 100)})
           </div>
         </div>
       </div>

@@ -33,8 +33,8 @@ export default function StudentManager({ students, installments, teachers = [], 
   const [registrationDate, setRegistrationDate] = useState(getTodayDateString());
   const [monthlyFee, setMonthlyFee] = useState<number>(5000);
   const [installmentCount, setInstallmentCount] = useState<number>(36);
-  const [downPayment, setDownPayment] = useState<number>(2000);
-  const [totalFee, setTotalFee] = useState<number>(32000);
+  const [downPayment, setDownPayment] = useState<number>(0);
+  const [totalFee, setTotalFee] = useState<number>(180000);
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<'active' | 'graduated' | 'frozen'>('active');
   const [teacherId, setTeacherId] = useState('');
@@ -83,7 +83,7 @@ export default function StudentManager({ students, installments, teachers = [], 
     setRegistrationDate(getTodayDateString());
     setMonthlyFee(5000);
     setInstallmentCount(36);
-    setDownPayment(2000);
+    setDownPayment(0);
     setNotes('');
     setStatus('active');
     setTeacherId('');
@@ -113,11 +113,6 @@ export default function StudentManager({ students, installments, teachers = [], 
     e.preventDefault();
     if (!name.trim() || !phone.trim()) {
       alert("Lütfen öğrenci adı ve telefon numarasını giriniz.");
-      return;
-    }
-
-    if (totalFee < downPayment) {
-      alert("Peşinat toplam tutardan büyük olamaz.");
       return;
     }
 
@@ -324,7 +319,9 @@ export default function StudentManager({ students, installments, teachers = [], 
                       </td>
                       <td className="p-4 text-right font-medium">
                         <div className="text-indigo-700 font-extrabold">{Math.round((student.totalFee - student.downPayment) / (student.installmentCount || 12)).toLocaleString('tr-TR')} ₺ / Ay</div>
-                        <div className="text-[10px] text-gray-400">Peşinat: {student.downPayment.toLocaleString('tr-TR')} ₺</div>
+                        {student.downPayment > 0 && (
+                          <div className="text-[10px] text-gray-400">Peşinat: {student.downPayment.toLocaleString('tr-TR')} ₺</div>
+                        )}
                       </td>
                       <td className="p-4 text-right font-medium">
                         <span className="text-emerald-700 font-bold">
@@ -529,37 +526,22 @@ export default function StudentManager({ students, installments, teachers = [], 
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-600">Kayıt Peşinatı (₺)</label>
-                        <input
-                          type="number"
-                          value={downPayment}
-                          onChange={(e) => setDownPayment(Number(e.target.value))}
-                          className="w-full mt-1 px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-850"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-gray-600">Kayıt / Başlangıç Tarihi</label>
-                        <input
-                          type="date"
-                          required
-                          value={registrationDate}
-                          onChange={(e) => setRegistrationDate(e.target.value)}
-                          className="w-full mt-1 px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-850 font-mono"
-                        />
-                      </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-600">Kayıt / Başlangıç Tarihi</label>
+                      <input
+                        type="date"
+                        required
+                        value={registrationDate}
+                        onChange={(e) => setRegistrationDate(e.target.value)}
+                        className="w-full mt-1 px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-850 font-mono"
+                      />
                     </div>
 
                     {/* Continuous Billing Summary Box */}
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between text-xs my-1">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs my-1">
                       <div className="flex flex-col">
                         <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Aylık Periyodik Tahsilat Bilgisi</span>
                         <span className="text-[11px] text-gray-600 font-medium mt-0.5">Kayıt silinene kadar her ay {monthlyFee.toLocaleString('tr-TR')} ₺ vade oluşturulur.</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="block text-[9px] text-gray-400 font-bold uppercase tracking-wider">Başlangıç Peşinatı</span>
-                        <span className="text-xs font-black text-indigo-700 font-sans">{downPayment.toLocaleString('tr-TR')} ₺</span>
                       </div>
                     </div>
 
