@@ -3,8 +3,9 @@ import { Student, Lesson, Teacher } from '../types';
 import { 
   Calendar, Check, Clock, Plus, Trash2, Edit3, User, X, 
   AlertCircle, ChevronLeft, ChevronRight, SlidersHorizontal, BookOpen, GraduationCap,
-  MessageSquare, Send, Copy, Smartphone
+  MessageSquare, Send, Copy, Smartphone, Download
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 interface CalendarManagerProps {
   students: Student[];
@@ -381,6 +382,207 @@ export default function CalendarManager({
     return `${h.toString().padStart(2, '0')}:00`;
   });
 
+  const normalizeTurkish = (text: string): string => {
+    if (!text) return '';
+    return text
+      .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+      .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+      .replace(/ş/g, 's').replace(/Ş/g, 'S')
+      .replace(/ı/g, 'i').replace(/İ/g, 'I')
+      .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+      .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    
+    // Color mapping for lesson presets
+    const colorMapping: Record<string, { bg: { r: number, g: number, b: number }, border: { r: number, g: number, b: number }, text: { r: number, g: number, b: number } }> = {
+      indigo: { bg: { r: 238, g: 242, b: 255 }, border: { r: 199, g: 210, b: 254 }, text: { r: 55, g: 48, b: 163 } },
+      emerald: { bg: { r: 236, g: 253, b: 245 }, border: { r: 167, g: 243, b: 208 }, text: { r: 6, g: 95, b: 70 } },
+      blue: { bg: { r: 239, g: 246, b: 255 }, border: { r: 191, g: 219, b: 254 }, text: { r: 30, g: 64, b: 175 } },
+      purple: { bg: { r: 245, g: 243, b: 255 }, border: { r: 221, g: 214, b: 254 }, text: { r: 91, g: 33, b: 182 } },
+      pink: { bg: { r: 253, g: 242, b: 248 }, border: { r: 251, g: 207, b: 232 }, text: { r: 157, g: 23, b: 77 } },
+      amber: { bg: { r: 255, g: 251, b: 235 }, border: { r: 253, g: 230, b: 138 }, text: { r: 146, g: 64, b: 14 } },
+      rose: { bg: { r: 255, g: 241, b: 242 }, border: { r: 254, g: 205, b: 211 }, text: { r: 159, g: 18, b: 57 } }
+    };
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text(normalizeTurkish("YAĞMUR YÜKSEL SANAT AKADEMİSİ"), 148.5, 12, { align: "center" });
+    
+    // Subtitle
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(71, 85, 105); // slate-600
+    doc.text(normalizeTurkish("Haftalık Ders Programı Tablosu"), 148.5, 17, { align: "center" });
+    
+    // Date & Filters Info
+    const today = new Date().toLocaleDateString('tr-TR');
+    let subtitleText = `Rapor Tarihi: ${today}`;
+    if (selectedDayFilter !== 'all') {
+      const dayLabel = DAYS_OF_WEEK.find(d => d.value === selectedDayFilter)?.label || '';
+      subtitleText += ` | Filtre: ${dayLabel}`;
+    }
+    if (selectedStudentFilter !== 'all') {
+      const studentName = students.find(s => s.id === selectedStudentFilter)?.name || '';
+      subtitleText += ` | Öğrenci: ${studentName}`;
+    }
+    if (searchQuery) {
+      subtitleText += ` | Arama: "${searchQuery}"`;
+    }
+    
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text(normalizeTurkish(subtitleText), 148.5, 22, { align: "center" });
+    
+    // Total Width calculations
+    const pageLength = 297;
+    const pageHeight = 210;
+    const leftOffset = 10;
+    const rightOffset = 10;
+    const availableWidth = pageLength - leftOffset - rightOffset; // 277mm
+    const columnGap = 1.8;
+    const totalDays = 7;
+    const columnWidth = (availableWidth - (columnGap * (totalDays - 1))) / totalDays; // ~38mm
+
+    const columnHeaderYStart = 26;
+    const columnHeaderHeight = 11;
+    const contentYStart = 39;
+    const availableHeightForCards = 153; // 192mm is max safe bottom Y
+
+    // Calculate maximum lessons in any single day to auto-scale card heights
+    const maxLessonsCount = Math.max(1, ...DAYS_OF_WEEK.map(day => (lessonsByDay[day.value] || []).length));
+    
+    // Default card parameters
+    let cardHeight = 16;
+    let gap = 1.5;
+    let cardHeightWithGap = 17.5;
+
+    // Auto-scale if max lessons list overflows the page
+    if (maxLessonsCount * 17.5 > availableHeightForCards) {
+      cardHeightWithGap = availableHeightForCards / maxLessonsCount;
+      gap = Math.max(0.6, cardHeightWithGap * 0.08);
+      cardHeight = cardHeightWithGap - gap;
+    }
+
+    DAYS_OF_WEEK.forEach((day, i) => {
+      const x = leftOffset + i * (columnWidth + columnGap);
+      
+      // 1. Column Day Header Background
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.roundedRect(x, columnHeaderYStart, columnWidth, columnHeaderHeight, 1.2, 1.2, 'F');
+      
+      // Column Day Header Border
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(0.3);
+      doc.roundedRect(x, columnHeaderYStart, columnWidth, columnHeaderHeight, 1.2, 1.2, 'S');
+      
+      // Day Label
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(51, 65, 85); // slate-700
+      doc.text(normalizeTurkish(day.label), x + columnWidth / 2, columnHeaderYStart + 4.5, { align: "center" });
+      
+      // Day Lesson Count
+      const dayLessons = lessonsByDay[day.value] || [];
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(115, 115, 115);
+      doc.text(normalizeTurkish(`${dayLessons.length} Ders`), x + columnWidth / 2, columnHeaderYStart + 9, { align: "center" });
+
+      // 2. Draw Column Contents
+      if (dayLessons.length === 0) {
+        // Draw empty indicator box representing "no lessons" matching the app UI
+        doc.setDrawColor(241, 245, 249); // slate-100
+        doc.setFillColor(255, 255, 255);
+        doc.setLineWidth(0.35);
+        doc.setLineDashPattern([1.5, 1.5], 0);
+        doc.roundedRect(x, contentYStart, columnWidth, 25, 1.2, 1.2, 'FD');
+        doc.setLineDashPattern([], 0); // reset line dash style
+        
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(7.5);
+        doc.setTextColor(203, 213, 225); // slate-300
+        doc.text(normalizeTurkish("Ders Yazilmamis"), x + columnWidth / 2, contentYStart + 13, { align: "center" });
+      } else {
+        dayLessons.forEach((lesson, j) => {
+          const y = contentYStart + j * cardHeightWithGap;
+          
+          const colorId = lesson.color || 'indigo';
+          const colorProfile = colorMapping[colorId] || colorMapping['indigo'];
+          
+          // Draw Lesson Card
+          doc.setFillColor(colorProfile.bg.r, colorProfile.bg.g, colorProfile.bg.b);
+          doc.setDrawColor(colorProfile.border.r, colorProfile.border.g, colorProfile.border.b);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(x, y, columnWidth, cardHeight, 1.2, 1.2, 'FD');
+          
+          // Left accent bar
+          doc.setFillColor(colorProfile.text.r, colorProfile.text.g, colorProfile.text.b);
+          doc.rect(x, y, 1.2, cardHeight, 'F');
+          
+          // Text setups
+          const textPaddingX = x + 3;
+          doc.setTextColor(colorProfile.text.r, colorProfile.text.g, colorProfile.text.b);
+          
+          const timeFontSize = cardHeight < 11 ? 5.5 : cardHeight < 14 ? 6.5 : 7;
+          const studentFontSize = cardHeight < 11 ? 6 : cardHeight < 14 ? 7 : 8;
+          const detailFontSize = cardHeight < 11 ? 5.5 : cardHeight < 14 ? 6.5 : 7;
+          
+          // A. Draw Clock Time Icon & String
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(timeFontSize);
+          const timeStr = `${lesson.startTime} - ${lesson.endTime}`;
+          doc.text(normalizeTurkish(timeStr), textPaddingX, y + (cardHeight * 0.26));
+          
+          // B. Draw Student Name
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(studentFontSize);
+          let studentName = lesson.studentName;
+          const maxStudentLength = columnWidth > 38 ? 16 : 14;
+          if (studentName.length > maxStudentLength) {
+            studentName = studentName.substring(0, maxStudentLength - 2) + "..";
+          }
+          doc.text(normalizeTurkish(studentName), textPaddingX, y + (cardHeight * 0.54));
+          
+          // C. Draw Course and Teacher name
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(detailFontSize);
+          let courseAndTeacher = lesson.course;
+          if (lesson.teacherName) {
+            courseAndTeacher += ` | ${lesson.teacherName}`;
+          }
+          const maxDetailLength = columnWidth > 38 ? 22 : 18;
+          if (courseAndTeacher.length > maxDetailLength) {
+            courseAndTeacher = courseAndTeacher.substring(0, maxDetailLength - 2) + "..";
+          }
+          doc.text(normalizeTurkish(courseAndTeacher), textPaddingX, y + (cardHeight * 0.81));
+        });
+      }
+    });
+
+    // Footer - Simple styling watermark in landscape
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text(
+      normalizeTurkish("Bu haftalık program Yağmur Yüksel Sanat Akademisi otomasyon sistemi ile otomatik oluşturulmuştur."),
+      leftOffset,
+      198
+    );
+    doc.text(
+      normalizeTurkish("Sayfa 1 / 1"),
+      pageLength - rightOffset,
+      198,
+      { align: "right" }
+    );
+    
+    doc.save(`haftalik_ders_tablosu_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="space-y-6" id="calendar-manager-container">
       {/* Upper Control Bar */}
@@ -457,6 +659,13 @@ export default function CalendarManager({
               Günlük Liste
             </button>
           </div>
+
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-xs cursor-pointer transition-all shrink-0"
+          >
+            <Download className="w-4 h-4" /> Haftalık PDF İndir
+          </button>
 
           {!isReadOnly && (
             <button

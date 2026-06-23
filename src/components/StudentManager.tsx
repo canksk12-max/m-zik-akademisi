@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Student, Installment, Teacher } from '../types';
 import { getTodayDateString } from '../data/mockData';
 import { Plus, Search, Edit2, Trash2, GraduationCap, DollarSign, Calendar, ListFilter, AlertCircle, Sparkles, UserPlus, Save, X, Phone, Mail, User } from 'lucide-react';
+import { formatInstallmentPeriod } from './InstallmentsManager';
 
 interface StudentManagerProps {
   students: Student[];
@@ -32,9 +33,9 @@ export default function StudentManager({ students, installments, teachers = [], 
   const [course, setCourse] = useState('Piyano');
   const [registrationDate, setRegistrationDate] = useState(getTodayDateString());
   const [monthlyFee, setMonthlyFee] = useState<number>(5000);
-  const [installmentCount, setInstallmentCount] = useState<number>(36);
+  const [installmentCount, setInstallmentCount] = useState<number>(12);
   const [downPayment, setDownPayment] = useState<number>(0);
-  const [totalFee, setTotalFee] = useState<number>(180000);
+  const [totalFee, setTotalFee] = useState<number>(60000);
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<'active' | 'graduated' | 'frozen'>('active');
   const [teacherId, setTeacherId] = useState('');
@@ -44,33 +45,47 @@ export default function StudentManager({ students, installments, teachers = [], 
     setTotalFee((monthlyFee * installmentCount) + downPayment);
   }, [monthlyFee, installmentCount, downPayment]);
 
+  // Safe month adder to prevent timezone misalignment and end-of-month shifting
+  const addMonthsSafely = (dateStr: string, monthsToAdd: number): string => {
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const day = parseInt(parts[2], 10);
+    let targetYear = year;
+    let targetMonth = month + monthsToAdd;
+    if (targetMonth > 11) {
+      targetYear += Math.floor(targetMonth / 12);
+      targetMonth = targetMonth % 12;
+    } else if (targetMonth < 0) {
+      targetYear += Math.floor(targetMonth / 12);
+      targetMonth = (targetMonth % 12 + 12) % 12;
+    }
+    const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const targetDay = Math.min(day, maxDays);
+    const yr = targetYear;
+    const mo = String(targetMonth + 1).padStart(2, '0');
+    const dy = String(targetDay).padStart(2, '0');
+    return `${yr}-${mo}-${dy}`;
+  };
+
   // Preview generated installments
   const previewInstallments = () => {
     if (monthlyFee <= 0 || installmentCount <= 0) return [];
     
     const list = [];
     
-    // Parse start date from registrationDate
-    const regDate = new Date(registrationDate);
-    
     for (let i = 1; i <= installmentCount; i++) {
-      // Calculate due date (monthly increments)
-      const dueDate = new Date(regDate);
-      dueDate.setMonth(regDate.getMonth() + i);
-      
-      const yr = dueDate.getFullYear();
-      const mo = String(dueDate.getMonth() + 1).padStart(2, '0');
-      const dy = String(dueDate.getDate()).padStart(2, '0');
-      const dateStr = `${yr}-${mo}-${dy}`;
-
-      list.push({
-        number: i,
-        dueDate: dateStr,
-        amount: monthlyFee
-      });
-    }
-    return list;
-  };
+      const dateStr = addMonthsSafely(registrationDate, i - 1);
+ 
+       list.push({
+         number: i,
+         dueDate: dateStr,
+         amount: monthlyFee
+       });
+     }
+     return list;
+   };
 
   const handleOpenAddForm = () => {
     setEditingStudent(null);
@@ -82,7 +97,7 @@ export default function StudentManager({ students, installments, teachers = [], 
     setCourse('Piyano');
     setRegistrationDate(getTodayDateString());
     setMonthlyFee(5000);
-    setInstallmentCount(36);
+    setInstallmentCount(12);
     setDownPayment(0);
     setNotes('');
     setStatus('active');
@@ -164,16 +179,8 @@ export default function StudentManager({ students, installments, teachers = [], 
       const generated: Installment[] = [];
       const remaining = totalFee - downPayment;
       if (remaining > 0 && installmentCount > 0) {
-        const regDate = new Date(registrationDate);
-
         for (let i = 1; i <= installmentCount; i++) {
-          const dueDate = new Date(regDate);
-          dueDate.setMonth(regDate.getMonth() + i);
-          
-          const yr = dueDate.getFullYear();
-          const mo = String(dueDate.getMonth() + 1).padStart(2, '0');
-          const dy = String(dueDate.getDate()).padStart(2, '0');
-          const dateStr = `${yr}-${mo}-${dy}`;
+          const dateStr = addMonthsSafely(registrationDate, i - 1);
 
           generated.push({
             id: `inst-${newStudentId}-${i}-${Date.now()}`,
@@ -587,7 +594,7 @@ export default function StudentManager({ students, installments, teachers = [], 
                         <div key={pi.number} className="bg-white p-2 rounded-lg border border-gray-150 text-center shadow-3xs">
                           <div className="text-[9px] font-bold text-indigo-700 uppercase">{pi.number}. Ay Taksiti</div>
                           <div className="text-xs font-bold text-slate-900 mt-0.5">{pi.amount.toLocaleString('tr-TR')} ₺</div>
-                          <div className="text-[8px] text-gray-400 font-mono mt-0.5">{pi.dueDate}</div>
+                          <div className="text-[9px] font-semibold text-slate-500 mt-0.5">{formatInstallmentPeriod(pi.dueDate)}</div>
                         </div>
                       ))}
                     </div>

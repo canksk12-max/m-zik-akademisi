@@ -36,6 +36,7 @@ export interface Installment {
   paymentDate?: string; // YYYY-MM-DD
   paymentMethod?: 'Cash' | 'Credit Card' | 'Bank Transfer' | string;
   status: 'pending' | 'paid' | 'overdue';
+  isCustom?: boolean;
 }
 
 export interface CashTransaction {

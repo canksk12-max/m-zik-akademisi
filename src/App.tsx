@@ -11,6 +11,49 @@ import TeacherManager from './components/TeacherManager';
 import AcademyLogo from './components/AcademyLogo';
 import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Smartphone, Download, X, Share2, Lock, LogOut, Key } from 'lucide-react';
 
+const correctInstallmentDueDates = (students: Student[], installments: Installment[]): Installment[] => {
+  return installments.map(inst => {
+    if (inst.isCustom || inst.id.includes('manual')) return inst;
+
+    const student = students.find(s => s.id === inst.studentId);
+    if (!student) return inst;
+    
+    const regDateParts = student.registrationDate.split('-');
+    if (regDateParts.length !== 3) return inst;
+    
+    const regYear = parseInt(regDateParts[0], 10);
+    const regMonth = parseInt(regDateParts[1], 10) - 1;
+    const regDay = parseInt(regDateParts[2], 10);
+    
+    let targetYear = regYear;
+    let targetMonth = regMonth + (inst.installmentNumber - 1);
+    
+    if (targetMonth > 11) {
+      targetYear += Math.floor(targetMonth / 12);
+      targetMonth = targetMonth % 12;
+    } else if (targetMonth < 0) {
+      targetYear += Math.floor(targetMonth / 12);
+      targetMonth = (targetMonth % 12 + 12) % 12;
+    }
+    
+    const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const targetDay = Math.min(regDay, maxDays);
+    
+    const yr = targetYear;
+    const mo = String(targetMonth + 1).padStart(2, '0');
+    const dy = String(targetDay).padStart(2, '0');
+    const correctedDueDateStr = `${yr}-${mo}-${dy}`;
+    
+    if (inst.dueDate !== correctedDueDateStr) {
+      return {
+        ...inst,
+        dueDate: correctedDueDateStr
+      };
+    }
+    return inst;
+  });
+};
+
 export default function App() {
   // Database State
   const [students, setStudents] = useState<Student[]>([]);
@@ -161,7 +204,8 @@ export default function App() {
             setTeachers([]);
             setAutoWiped(true);
           } else {
-            const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
+            const corrected = correctInstallmentDueDates(data.students, data.installments);
+            const alignedInstallments = recalculateInstallmentStatus(corrected, getTodayDateString());
             setStudents(data.students);
             setInstallments(alignedInstallments);
             setTransactions(data.transactions);
@@ -202,7 +246,8 @@ export default function App() {
           setTeachers([]);
           setAutoWiped(true);
         } else {
-          const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
+          const corrected = correctInstallmentDueDates(data.students, data.installments);
+          const alignedInstallments = recalculateInstallmentStatus(corrected, getTodayDateString());
 
           setStudents(data.students);
           setInstallments(alignedInstallments);
@@ -240,7 +285,8 @@ export default function App() {
         setDbError(friendlyError);
         setDbMode('local');
         const data = getStoredData();
-        const alignedInstallments = recalculateInstallmentStatus(data.installments, getTodayDateString());
+        const corrected = correctInstallmentDueDates(data.students, data.installments);
+        const alignedInstallments = recalculateInstallmentStatus(corrected, getTodayDateString());
 
         setStudents(data.students);
         setInstallments(alignedInstallments);
@@ -262,7 +308,8 @@ export default function App() {
     nextLessons: Lesson[] = lessons,
     nextTeachers: Teacher[] = teachers
   ) => {
-    const aligned = recalculateInstallmentStatus(nextInstallments, getTodayDateString());
+    const corrected = correctInstallmentDueDates(nextStudents, nextInstallments);
+    const aligned = recalculateInstallmentStatus(corrected, getTodayDateString());
     
     // Save previous snapshot for diffing
     const oldState: AppDatabaseState = { students, installments, transactions, lessons, teachers };

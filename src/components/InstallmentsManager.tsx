@@ -3,6 +3,22 @@ import { Installment, Student, CashTransaction } from '../types';
 import { getTodayDateString } from '../data/mockData';
 import { Search, DollarSign, Calendar, CheckCircle, Smartphone, AlertCircle, Printer, X, CreditCard, Wallet, Landmark, RefreshCw, Send, Edit2, Save, Plus } from 'lucide-react';
 
+export function formatInstallmentPeriod(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parts[0];
+  const monthNum = parseInt(parts[1], 10);
+  const monthNames = [
+    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
+  ];
+  if (monthNum >= 1 && monthNum <= 12) {
+    return `${monthNames[monthNum - 1]} ${year}`;
+  }
+  return dateStr;
+}
+
 interface InstallmentsManagerProps {
   installments: Installment[];
   students: Student[];
@@ -49,7 +65,8 @@ export default function InstallmentsManager({ installments, students, onPayInsta
       ...editingInst,
       amount: editingAmount,
       dueDate: editingDueDate,
-      status: editingInst.paidAmount >= editingAmount ? 'paid' : 'pending'
+      status: editingInst.paidAmount >= editingAmount ? 'paid' : 'pending',
+      isCustom: true
     };
 
     onUpdateInstallment(updated);
@@ -111,7 +128,8 @@ export default function InstallmentsManager({ installments, students, onPayInsta
       dueDate: addDueDate,
       amount: addAmount,
       paidAmount: 0,
-      status: 'pending'
+      status: 'pending',
+      isCustom: true
     };
 
     onAddInstallment(newInst);
@@ -125,6 +143,9 @@ export default function InstallmentsManager({ installments, students, onPayInsta
 
   // Filter logic
   const filteredInstallments = installments.filter(inst => {
+    // Only show first 12 installments (1 year / 12 months)
+    if (inst.installmentNumber > 12) return false;
+
     const student = students.find(s => s.id === inst.studentId);
     const parentName = student?.parentName || '';
     const matchesSearch = inst.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -145,6 +166,9 @@ export default function InstallmentsManager({ installments, students, onPayInsta
 
     return matchesSearch && isMatch;
   });
+
+  // Sort installments chronologically by dueDate so that June 2026 is followed by July 2026
+  const sortedFilteredInstallments = [...filteredInstallments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
   const handleOpenPayDialog = (inst: Installment) => {
     setPayingInstallment(inst);
@@ -230,7 +254,7 @@ export default function InstallmentsManager({ installments, students, onPayInsta
           <span className="text-xs font-mono text-gray-400">Toplam {filteredInstallments.length} Taksit Satırı Bulundu</span>
         </div>
 
-        {filteredInstallments.length === 0 ? (
+        {sortedFilteredInstallments.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center justify-center">
             <Calendar className="w-10 h-10 text-gray-300 mb-2" />
             <p className="text-sm font-bold text-gray-600">Eşleşen Taksit Bulunamadı</p>
@@ -243,7 +267,7 @@ export default function InstallmentsManager({ installments, students, onPayInsta
                 <tr className="bg-gray-50/70 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                   <th className="p-4">Öğrenci Adı</th>
                   <th className="p-4 text-center">Taksit No</th>
-                  <th className="p-4">Son Ödeme (Vade)</th>
+                  <th className="p-4">Taksit Dönemi</th>
                   <th className="p-4 text-right">Taksit Tutarı</th>
                   <th className="p-4 text-right">Ödenen Miktar</th>
                   <th className="p-4 text-right">Kalan Kısım</th>
@@ -252,7 +276,7 @@ export default function InstallmentsManager({ installments, students, onPayInsta
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs">
-                {filteredInstallments.map(inst => {
+                {sortedFilteredInstallments.map(inst => {
                   const student = students.find(s => s.id === inst.studentId);
                   const remaining = inst.amount - inst.paidAmount;
                   const isOverdue = inst.dueDate < CURRENT_DATE_STR && remaining > 0;
@@ -271,11 +295,14 @@ export default function InstallmentsManager({ installments, students, onPayInsta
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className={`font-mono font-medium ${isOverdue ? 'text-rose-600 font-bold' : 'text-gray-600'}`}>
-                          {inst.dueDate}
-                        </span>
+                        <div className={`font-bold ${isOverdue ? 'text-rose-600' : 'text-slate-800'}`}>
+                          {formatInstallmentPeriod(inst.dueDate)}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                          Vade: {inst.dueDate.split('-').reverse().join('.')}
+                        </div>
                         {isOverdue && (
-                          <span className="block text-[8px] bg-rose-50 text-rose-600 border border-rose-100 px-1 py-0.2 rounded w-max mt-0.5">
+                          <span className="block text-[8px] bg-rose-50 text-rose-600 border border-rose-100 px-1 py-0.2 rounded w-max mt-0.5 font-bold">
                             Gecikmede
                           </span>
                         )}

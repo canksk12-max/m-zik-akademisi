@@ -49,19 +49,42 @@ export default function Dashboard({
   const activeStudents = students.filter(s => s.status === 'active').length;
   const graduatedStudents = students.filter(s => s.status === 'graduated').length;
 
-  // Total Expected Income (Anlaşılan Toplam Bedel)
-  const totalExpectedIncome = students.reduce((sum, s) => sum + s.totalFee, 0);
+  // Total Expected Income (Anlaşılan Toplam Bedel) - capped at first 12 months/installments per student
+  const totalExpectedIncome = students.reduce((sum, s) => {
+    const instCount = s.installmentCount || 12;
+    const activeCount = Math.min(instCount, 12);
+    const monthlyFee = instCount > 0 ? (s.totalFee - s.downPayment) / instCount : s.totalFee;
+    return sum + s.downPayment + (monthlyFee * activeCount);
+  }, 0);
 
-  // Total Collected (Peşinatlar + Ödenen Taksit Miktarları)
+  // Total Collected (Peşinatlar + Ödenen Taksit Miktarları) - capped at first 12 installments
   const totalCollectedFromDownpayments = students.reduce((sum, s) => sum + s.downPayment, 0);
-  const totalCollectedFromInstallments = installments.reduce((sum, inst) => sum + inst.paidAmount, 0);
+  const totalCollectedFromInstallments = installments
+    .filter(inst => inst.installmentNumber <= 12)
+    .reduce((sum, inst) => sum + inst.paidAmount, 0);
   const totalCollected = totalCollectedFromDownpayments + totalCollectedFromInstallments;
 
   // Remaining Balance (Kalan Toplam Borç)
   const remainingBalance = totalExpectedIncome - totalCollected;
 
-  // Overdue Installments (Gecikmiş Ödemeler Toplamı)
+  // Current Month's prefix (YYYY-MM)
+  const currentMonthPrefix = CURRENT_DATE_STR.substring(0, 7);
+
+  // Filter installments for the current month (capped at first 12 installments)
+  const currentMonthInstallments = installments.filter(inst => {
+    if (inst.installmentNumber > 12) return false;
+    return inst.dueDate.startsWith(currentMonthPrefix);
+  });
+
+  const remainingBalanceThisMonth = currentMonthInstallments.reduce((sum, inst) => {
+    return sum + Math.max(0, inst.amount - inst.paidAmount);
+  }, 0);
+
+  const totalScheduledThisMonth = currentMonthInstallments.reduce((sum, inst) => sum + inst.amount, 0);
+
+  // Overdue Installments (Gecikmiş Ödemeler Toplamı) - capped at first 12 installments
   const overdueInstallmentsList = installments.filter(inst => {
+    if (inst.installmentNumber > 12) return false;
     const isUnpaid = inst.paidAmount < inst.amount;
     const isPastDue = inst.dueDate < CURRENT_DATE_STR;
     return isUnpaid && isPastDue;
@@ -77,6 +100,7 @@ export default function Dashboard({
   })();
 
   const upcomingInstallments = installments.filter(inst => {
+    if (inst.installmentNumber > 12) return false;
     return inst.dueDate >= CURRENT_DATE_STR && 
            inst.dueDate <= THREE_DAYS_LATER_STR && 
            inst.paidAmount < inst.amount;
@@ -120,12 +144,12 @@ export default function Dashboard({
             <Clock className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-tight">Kalan Borç Alacak</div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-tight">Bu Ayki Kalan Alacak</div>
             <div className="text-2xl font-bold font-sans text-amber-600 mt-0.5">
-              {remainingBalance.toLocaleString('tr-TR')} ₺
+              {remainingBalanceThisMonth.toLocaleString('tr-TR')} ₺
             </div>
             <div className="text-[11px] text-gray-500 mt-0.5">
-              Toplam {totalExpectedIncome.toLocaleString('tr-TR')} ₺ kontrat
+              Bu ayki {totalScheduledThisMonth.toLocaleString('tr-TR')} ₺ taksit bütçesinden kalan
             </div>
           </div>
         </div>
