@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Student, Installment, CashTransaction, Lesson, Teacher } from './types';
-import { getStoredData, saveStoredData, recalculateInstallmentStatus, getTodayDateString, formatTurkishDate } from './data/mockData';
+import { getStoredData, saveStoredData, recalculateInstallmentStatus, getTodayDateString, formatTurkishDate, INITIAL_STUDENTS, INITIAL_INSTALLMENTS, INITIAL_TRANSACTIONS, INITIAL_LESSONS, INITIAL_TEACHERS } from './data/mockData';
 import { loadFirestoreData, syncStateWithFirestore, forceUploadLocalDataToFirestore, clearAllFirestoreData, AppDatabaseState } from './data/firebaseService';
 import { db, getFirebaseProvider, setFirebaseProvider, FirebaseProvider } from './data/firebase';
 import Dashboard from './components/Dashboard';
@@ -9,7 +9,7 @@ import InstallmentsManager from './components/InstallmentsManager';
 import CalendarManager from './components/CalendarManager';
 import TeacherManager from './components/TeacherManager';
 import AcademyLogo from './components/AcademyLogo';
-import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Smartphone, Download, X, Share2, Lock, LogOut, Key } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, CreditCard, ChevronDown, CheckSquare, Sparkles, Building2, Landmark, PhoneCall, Calendar, Users, RefreshCw, AlertCircle, Smartphone, Download, X, Share2, Lock, LogOut, Key, Trash2 } from 'lucide-react';
 
 const correctInstallmentDueDates = (students: Student[], installments: Installment[]): Installment[] => {
   return installments.map(inst => {
@@ -174,6 +174,45 @@ export default function App() {
     }
   };
 
+  const handleRestoreDemoData = async () => {
+    if (!window.confirm("Dikkat: Önceki öğrenci kayıtları ve örnek bütçe/taksit verileri sisteme geri yüklenecektir. Devam etmek istiyor musunuz?")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const demoData: AppDatabaseState = {
+        students: INITIAL_STUDENTS,
+        installments: INITIAL_INSTALLMENTS,
+        transactions: INITIAL_TRANSACTIONS,
+        lessons: INITIAL_LESSONS,
+        teachers: INITIAL_TEACHERS
+      };
+
+      if (dbMode === 'firebase') {
+        // Clear first to prevent duplicates
+        await clearAllFirestoreData();
+        // Upload demo/sample data
+        await forceUploadLocalDataToFirestore(demoData);
+      }
+
+      // Also update local storage
+      saveStoredData(INITIAL_STUDENTS, INITIAL_INSTALLMENTS, INITIAL_TRANSACTIONS, INITIAL_LESSONS, INITIAL_TEACHERS);
+
+      setStudents(INITIAL_STUDENTS);
+      setInstallments(INITIAL_INSTALLMENTS);
+      setTransactions(INITIAL_TRANSACTIONS);
+      setLessons(INITIAL_LESSONS);
+      setTeachers(INITIAL_TEACHERS);
+
+      setMigrationSuccess("Tüm örnek öğrenci kayıtları ve mali veriler başarıyla geri yüklendi!");
+    } catch (err) {
+      console.error("Geri yükleme başarısız:", err);
+      alert("Hata oluştu: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSwitchProvider = (newProvider: FirebaseProvider) => {
     setFirebaseProvider(newProvider);
     setProvider(newProvider);
@@ -192,26 +231,13 @@ export default function App() {
         console.log("Local offline mode: loading from localStorage...");
         try {
           const data = getStoredData();
-          const hasMockStudents = data.students.some(s => s.id === 'std-1') || data.teachers.some(t => t.id === 'tch-1');
-          if (hasMockStudents) {
-            console.log("Mock data detected locally. Auto-wiping...");
-            localStorage.setItem("or_initialized", "true");
-            saveStoredData([], [], [], [], []);
-            setStudents([]);
-            setInstallments([]);
-            setTransactions([]);
-            setLessons([]);
-            setTeachers([]);
-            setAutoWiped(true);
-          } else {
-            const corrected = correctInstallmentDueDates(data.students, data.installments);
-            const alignedInstallments = recalculateInstallmentStatus(corrected, getTodayDateString());
-            setStudents(data.students);
-            setInstallments(alignedInstallments);
-            setTransactions(data.transactions);
-            setLessons(data.lessons || []);
-            setTeachers(data.teachers || []);
-          }
+          const corrected = correctInstallmentDueDates(data.students, data.installments);
+          const alignedInstallments = recalculateInstallmentStatus(corrected, getTodayDateString());
+          setStudents(data.students);
+          setInstallments(alignedInstallments);
+          setTransactions(data.transactions);
+          setLessons(data.lessons || []);
+          setTeachers(data.teachers || []);
           setDbError(null);
         } catch (err) {
           console.error("Local data initialization failed:", err);
@@ -233,18 +259,23 @@ export default function App() {
           )
         ]);
 
-        const hasMockStudents = data.students.some(s => s.id === 'std-1') || data.teachers.some(t => t.id === 'tch-1');
-        if (hasMockStudents) {
-          console.log("Mock data detected in Firestore. Auto-wiping as requested for clean slate...");
-          await clearAllFirestoreData();
-          localStorage.setItem("or_initialized", "true");
-          saveStoredData([], [], [], [], []);
-          setStudents([]);
-          setInstallments([]);
-          setTransactions([]);
-          setLessons([]);
-          setTeachers([]);
-          setAutoWiped(true);
+        const localData = getStoredData();
+        const localHasData = localData.students.length > 0 || localData.teachers.length > 0;
+        const firestoreIsEmpty = data.students.length === 0 && data.teachers.length === 0;
+
+        if (firestoreIsEmpty && localHasData) {
+          console.log("Firestore is empty, but local storage contains data. Loading local data and switching to offline mode to prevent loss...");
+          const corrected = correctInstallmentDueDates(localData.students, localData.installments);
+          const alignedInstallments = recalculateInstallmentStatus(corrected, getTodayDateString());
+          
+          setStudents(localData.students);
+          setInstallments(alignedInstallments);
+          setTransactions(localData.transactions);
+          setLessons(localData.lessons || []);
+          setTeachers(localData.teachers || []);
+          
+          setDbMode('local');
+          setDbError("Bulut veritabanınız boş fakat yerel tarayıcınızda kayıtlı verileriniz var. Verilerinizin silinmesini önlemek için geçici olarak 'Yerel (Offline)' çalışma moduna geçildi. Bu verileri buluta yüklemek için sağ üstteki yeşil 'Yerel Verileri Buluta Eşitle' butonunu kullanabilirsiniz.");
         } else {
           const corrected = correctInstallmentDueDates(data.students, data.installments);
           const alignedInstallments = recalculateInstallmentStatus(corrected, getTodayDateString());
@@ -257,9 +288,9 @@ export default function App() {
           
           // Pre-cache to localStorage as well for instant-responsiveness
           saveStoredData(data.students, alignedInstallments, data.transactions, data.lessons, data.teachers);
+          setDbMode('firebase');
+          setDbError(null);
         }
-        setDbMode('firebase');
-        setDbError(null);
 
       } catch (err) {
         console.warn("Could not load from Firestore, using offline storage fallback:", err);
@@ -333,7 +364,10 @@ export default function App() {
     // Sync incrementally with Firestore in the background, catch errors gracefully
     if (dbMode === 'firebase') {
       syncStateWithFirestore(oldState, newState).catch(err => {
-        console.warn("Background cloud syncing error, running in hybrid cache mode:", err);
+        console.warn("Background cloud syncing error, switching to offline fallback:", err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setDbMode('local');
+        setDbError(`Veri kaydedilirken bulut bağlantı hatası oluştu. Verileriniz tarayıcınıza güvenle kaydedildi fakat bulut eşitlemesi yapılamadı. (${errMsg})`);
       });
     }
   };
@@ -621,8 +655,28 @@ export default function App() {
               <span>Eğitmenler</span>
             </button>
           </nav>
+          
+          <div className="mt-6 pt-4 border-t border-gray-150 space-y-2 hidden lg:block">
+            <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase px-3.5 py-1">Sistem & Veri Yönetimi</p>
+            <button
+              onClick={handleRestoreDemoData}
+              className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800 rounded-xl text-left text-xs font-bold transition-all cursor-pointer"
+              title="Örnek veya silinmiş varsayılan öğrenci kayıtlarını ve planlarını geri yükler."
+            >
+              <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+              <span>Kayıtları Geri Yükle</span>
+            </button>
+            <button
+              onClick={handleWipeDatabase}
+              className="w-full flex items-center gap-2 px-3.5 py-2 hover:bg-rose-50 text-rose-600 hover:text-rose-700 rounded-xl text-left text-xs font-bold transition-all cursor-pointer"
+              title="Veritabanındaki tüm verileri kalıcı olarak temizler ve sıfırlar."
+            >
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Tüm Verileri Sıfırla</span>
+            </button>
+          </div>
 
-          <div className="pt-6 hidden lg:block text-center text-[10px] text-gray-400 font-medium">
+          <div className="pt-6 hidden lg:block text-center text-[10px] text-gray-400 font-medium border-t border-gray-100 mt-4">
             <p>Yağmur Yüksel Sanat Akademisi v1.4.0</p>
             <p className="mt-0.5">Yönetici Paneli</p>
           </div>
@@ -776,6 +830,32 @@ export default function App() {
                 </div>
               </div>
             )
+          )}
+
+          {/* Empty State / Database Recovery Assistant Banner */}
+          {students.length === 0 && (
+            <div className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md text-white relative overflow-hidden animate-fade-in" id="empty-database-recovery-banner">
+              <div className="absolute right-0 bottom-0 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="flex items-start gap-3.5 relative z-10">
+                <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl shrink-0 border border-emerald-500/20">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-emerald-400 font-sans tracking-wide">
+                    Önceki Öğrenci Kayıtlarını Geri Yükle!
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                    Sisteminizde şu anda kayıtlı öğrenci bulunmuyor. Eğer daha önce girdiğiniz kayıtlar otomatik temizleme veya veritabanı sıfırlanması sebebiyle silindiyse, aşağıdaki butona tıklayarak önceki kayıtları ve bütçe planlarını anında geri yükleyebilirsiniz.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleRestoreDemoData}
+                className="cursor-pointer flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black rounded-xl text-xs transition-all shadow-md shrink-0 self-stretch sm:self-auto"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Kayıtları Geri Yükle
+              </button>
+            </div>
           )}
 
           {activeTab === 'dashboard' && (
